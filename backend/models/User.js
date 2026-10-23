@@ -31,6 +31,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'Manufacturing ERP Enterprise',
     },
+    securityCodeHash: {
+      type: String,
+    },
   },
   {
     timestamps: true,

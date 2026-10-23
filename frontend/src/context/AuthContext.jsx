@@ -142,6 +142,21 @@ export const AuthProvider = ({ children }) => {
     return { success: true, user: updatedUser };
   };
 
+  const resetPassword = async ({ email, secretCode, newPassword }) => {
+    setLoading(true);
+    try {
+      const res = await authService.resetPassword({ email, secretCode, newPassword });
+      setLoading(false);
+      return { success: true, message: res.data?.message || 'Password reset successfully!' };
+    } catch (err) {
+      setLoading(false);
+      return {
+        success: false,
+        message: err.response?.data?.message || err.message || 'Error resetting password',
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('erp_token');
     localStorage.removeItem('erp_user_backup');
@@ -159,6 +174,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        resetPassword,
         updateProfile,
         logout,
       }}

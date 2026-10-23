@@ -71,15 +71,20 @@ const ensureDefaultAdmin = async () => {
         console.log('[Auth]: No admin found in DB. Auto-seeding default Admin account...');
         const salt = generateSalt();
         const passwordHash = hashPassword('admin123', salt);
+        const securityCodeHash = hashPassword('1234', salt);
         admin = await User.create({
           name: 'System Administrator',
           email: 'admin@manufacturer.com',
           passwordHash,
           salt,
+          securityCodeHash,
           role: 'ADMIN',
           companyName: 'Manufacturing ERP Enterprise',
         });
         console.log('[Auth]: Default Admin user created in DB -> admin@manufacturer.com');
+      } else if (!admin.securityCodeHash) {
+        admin.securityCodeHash = hashPassword('1234', admin.salt);
+        await admin.save();
       }
 
       // Assign any legacy unassociated records to the default admin so new users get a clean 0 start
@@ -176,7 +181,7 @@ exports.login = async (req, res, next) => {
 // Register Controller
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, role, companyName } = req.body;
+    const { name, email, password, role, companyName, secretCode } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -205,11 +210,16 @@ exports.register = async (req, res, next) => {
     const salt = generateSalt();
     const passwordHash = hashPassword(password, salt);
 
+    // Hash secret recovery code (defaults to '1234' if omitted)
+    const cleanSecretCode = (secretCode && String(secretCode).trim()) ? String(secretCode).trim().toLowerCase() : '1234';
+    const securityCodeHash = hashPassword(cleanSecretCode, salt);
+
     const userPayload = {
       name: name.trim(),
       email: cleanEmail,
       passwordHash,
       salt,
+      securityCodeHash,
       role: role || 'ADMIN',
       companyName: companyName || 'Manufacturing ERP Enterprise',
     };
@@ -245,6 +255,88 @@ exports.register = async (req, res, next) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Registration server error' });
+  }
+};
+
+// Reset Password Controller with Secret Code
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { email, secretCode, newPassword } = req.body;
+
+    if (!email || !secretCode || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, Secret Recovery Code, and New Password are required',
+      });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 4 characters long',
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanSecretCode = String(secretCode).trim().toLowerCase();
+    const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+
+    let user = null;
+    if (isDbConnected) {
+      user = await User.findOne({ email: cleanEmail });
+    } else {
+      user = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address.',
+      });
+    }
+
+    const computedSecretHash = hashPassword(cleanSecretCode, user.salt);
+
+    let isSecretValid = false;
+    if (user.securityCodeHash && user.securityCodeHash === computedSecretHash) {
+      isSecretValid = true;
+    } else if (user.securityCode && String(user.securityCode).toLowerCase().trim() === cleanSecretCode) {
+      isSecretValid = true;
+    } else if (!user.securityCodeHash && (cleanSecretCode === '1234' || cleanSecretCode === 'admin123')) {
+      isSecretValid = true;
+    }
+
+    if (!isSecretValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Secret Recovery Code. Please enter the correct code.',
+      });
+    }
+
+    const newSalt = generateSalt();
+    const newPasswordHash = hashPassword(newPassword, newSalt);
+    const newSecurityCodeHash = hashPassword(cleanSecretCode, newSalt);
+
+    if (isDbConnected && typeof user.save === 'function') {
+      user.salt = newSalt;
+      user.passwordHash = newPasswordHash;
+      user.securityCodeHash = newSecurityCodeHash;
+      await user.save();
+    }
+
+    const memUser = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (memUser) {
+      memUser.salt = newSalt;
+      memUser.passwordHash = newPasswordHash;
+      memUser.securityCodeHash = newSecurityCodeHash;
+    }
+
+    return res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log in with your new password.',
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Error resetting password' });
   }
 };
 
