@@ -7,6 +7,7 @@ import PartiesPage from './pages/PartiesPage';
 import OrdersPage from './pages/OrdersPage';
 import InventoryPage from './pages/InventoryPage';
 import LoginPage from './pages/LoginPage';
+import MobileBottomNav from './components/MobileBottomNav';
 
 import ReceivePaymentModal from './components/ReceivePaymentModal';
 import CreateOrderModal from './components/CreateOrderModal';
@@ -163,14 +164,16 @@ const App = () => {
         onOpenInwardModal={() => setIsInwardModalOpen(true)}
         onOpenEditEnterpriseModal={() => setIsEditEnterpriseModalOpen(true)}
         onOpenIndustryModal={() => setIsIndustryModalOpen(true)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Navigation Sidebar */}
+        {/* Navigation Sidebar (Desktop) */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+        {/* Main Content Area with mobile bottom padding */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 pb-24 md:pb-8 custom-scrollbar">
           <div className="max-w-7xl mx-auto">
             {activeTab === 'dashboard' && (
               <DashboardPage
@@ -216,6 +219,14 @@ const App = () => {
           </div>
         </main>
       </div>
+
+      {/* Mobile Sticky Bottom Navigation Bar (Phone & Tablet) */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenPaymentModal={handleOpenPaymentModal}
+        onOpenOrderModal={() => setIsOrderModalOpen(true)}
+      />
 
       {/* Global Modals */}
       <ReceivePaymentModal

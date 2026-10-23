@@ -295,7 +295,7 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
             </div>
 
             <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full min-w-[650px] text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-800">
                     <th className="py-3.5 px-4">Payment / Value Date</th>

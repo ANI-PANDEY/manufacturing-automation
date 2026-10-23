@@ -251,7 +251,7 @@ const DashboardPage = ({
                   <div
                     key={ord._id}
                     onClick={() => onNavigate('ledger')}
-                    className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer flex items-center justify-between"
+                    className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer flex items-center justify-between gap-3"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">

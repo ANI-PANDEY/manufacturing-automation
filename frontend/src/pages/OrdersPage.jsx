@@ -140,7 +140,7 @@ const OrdersPage = ({ onOpenOrderModal, refreshTrigger }) => {
       {/* Orders Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden">
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full min-w-[800px] text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-4">Order Ref #</th>
