@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-// Resolve base API URL dynamically from environment variables with fallback
+// Resolve base API URL dynamically from environment variables with localhost fallback
 const getApiBaseUrl = () => {
   const envUrl =
     (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL)) ||
     (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL)) ||
-    'https://manufacturing-automation-3004.onrender.com';
+    'http://localhost:5000';
 
   const trimmed = envUrl.trim().replace(/\/+$/, '');
   // Ensure the /api path suffix is present
