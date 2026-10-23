@@ -1,0 +1,397 @@
+import React, { useState, useEffect } from 'react';
+import {
+  FileSpreadsheet,
+  FileText,
+  Calendar,
+  CreditCard,
+  Search,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Filter,
+  RefreshCw,
+  AlertCircle,
+  Building,
+  CheckCircle2,
+  Clock,
+  Send,
+} from 'lucide-react';
+import { partyService } from '../services/api';
+import { formatCurrency, exportLedgerToPDF, exportLedgerToExcel, shareLedgerOnWhatsApp } from '../utils/exportUtils';
+import { useAuth } from '../context/AuthContext';
+
+const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpenPaymentModal, refreshTrigger }) => {
+  const { user } = useAuth();
+  const [selectedPartyId, setSelectedPartyId] = useState(initialPartyId || '');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [ledgerData, setLedgerData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (initialPartyId) {
+      setSelectedPartyId(initialPartyId);
+    } else if (parties.length > 0) {
+      const exists = parties.some((p) => (p._id || p.id) === selectedPartyId);
+      if (!exists) {
+        setSelectedPartyId(parties[0]._id || parties[0].id);
+      }
+    }
+  }, [parties, initialPartyId]);
+
+  useEffect(() => {
+    if (selectedPartyId) {
+      fetchLedger();
+    }
+  }, [selectedPartyId, startDate, endDate, refreshTrigger]);
+
+  const fetchLedger = async () => {
+    if (!selectedPartyId) return;
+    try {
+      setLoading(true);
+      setError('');
+      const params = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const res = await partyService.getLedger(selectedPartyId, params);
+      if (res.data?.success) {
+        setLedgerData(res.data.data);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to load ledger');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickDateFilter = (days) => {
+    if (days === 0) {
+      setStartDate('');
+      setEndDate('');
+      return;
+    }
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+  };
+
+  const filteredEvents = (ledgerData?.ledger || []).filter((item) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.refNo.toLowerCase().includes(q) ||
+      (item.notes && item.notes.toLowerCase().includes(q)) ||
+      item.type.toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="space-y-6 font-sans">
+      {/* Top Filter Bar */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-lg space-y-4 transition-colors">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Party Selector */}
+          <div className="flex-1 min-w-[280px]">
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+              Select B2B Party / Customer
+            </label>
+            <div className="relative">
+              <Building className="w-4 h-4 text-indigo-500 absolute left-3.5 top-3" />
+              <select
+                value={selectedPartyId}
+                onChange={(e) => setSelectedPartyId(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-semibold rounded-2xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-sm"
+              >
+                {parties.length === 0 ? (
+                  <option value="">-- No Parties Available --</option>
+                ) : (
+                  parties.map((p) => {
+                    const pId = p._id || p.id;
+                    return (
+                      <option key={pId} value={pId}>
+                        {p.name} ({p.type}) - Due: {formatCurrency(p.currentBalance)}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Date Range Inputs */}
+          <div className="flex items-center space-x-2">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">From Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <span className="text-slate-400 mt-5">-</span>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">To Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Quick Date Pills */}
+          <div className="flex items-center space-x-1.5 pt-4 lg:pt-0">
+            <button
+              onClick={() => handleQuickDateFilter(0)}
+              className="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl font-bold border border-slate-200 dark:border-slate-700 transition"
+            >
+              All Time
+            </button>
+            <button
+              onClick={() => handleQuickDateFilter(30)}
+              className="text-xs bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-3 py-2 rounded-xl font-bold border border-indigo-200 dark:border-indigo-800/50 transition"
+            >
+              Last 30 Days
+            </button>
+          </div>
+        </div>
+
+        {/* Action Controls & Export */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search Invoice #, Receipt #, Notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2 w-full sm:w-auto justify-end flex-wrap gap-y-2">
+            <button
+              onClick={() => ledgerData && shareLedgerOnWhatsApp(ledgerData, user?.companyName, user?.upiId)}
+              disabled={!ledgerData}
+              className="inline-flex items-center space-x-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-xs font-bold px-3 py-2 rounded-xl border border-emerald-500/30 transition disabled:opacity-50"
+              title="Share Passbook Summary on WhatsApp"
+            >
+              <Send className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>WhatsApp</span>
+            </button>
+
+            <button
+              onClick={() => ledgerData && exportLedgerToPDF(ledgerData, startDate, endDate, user?.companyName)}
+              disabled={!ledgerData}
+              className="inline-flex items-center space-x-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-bold px-3.5 py-2 rounded-xl border border-rose-200 dark:border-rose-800/50 transition disabled:opacity-50"
+            >
+              <FileText className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <span>Export PDF</span>
+            </button>
+
+            <button
+              onClick={() => ledgerData && exportLedgerToExcel(ledgerData, user?.companyName)}
+              disabled={!ledgerData}
+              className="inline-flex items-center space-x-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold px-3.5 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800/50 transition disabled:opacity-50"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Export Excel</span>
+            </button>
+
+            <button
+              onClick={() => onOpenPaymentModal(selectedPartyId)}
+              className="inline-flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg shadow-emerald-600/25 transition transform active:scale-95"
+            >
+              <CreditCard className="w-4 h-4" />
+              <span>+ Receive Payment</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading & Error States */}
+      {loading && (
+        <div className="py-12 flex items-center justify-center space-x-2 text-indigo-500 dark:text-indigo-400 text-sm">
+          <RefreshCw className="w-5 h-5 animate-spin" />
+          <span className="font-semibold">Calculating Dynamic Ledger Passbook...</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm rounded-2xl p-4 flex items-center space-x-3">
+          <AlertCircle className="w-5 h-5 shrink-0 text-rose-500" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!loading && ledgerData && (
+        <>
+          {/* Party Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">Opening Balance</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white font-mono">
+                {formatCurrency(ledgerData.openingBalance)}
+              </span>
+              <span className="text-[10px] text-slate-400 block mt-1">Carried forward prior to start date</span>
+            </div>
+
+            <div className="bg-gradient-to-br from-amber-500/10 via-white dark:via-slate-900 to-amber-500/5 border border-amber-200 dark:border-amber-500/30 p-4 rounded-2xl shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-400">Total Dispatches (Debit)</span>
+                <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                  <ArrowUpRight className="w-4 h-4" />
+                </div>
+              </div>
+              <span className="text-lg font-black text-amber-600 dark:text-amber-400 block mt-1 font-mono">
+                {formatCurrency(ledgerData.totalDebit)}
+              </span>
+              <span className="text-[10px] text-amber-600/70 dark:text-amber-400/70 block mt-1">Total outward invoice billing</span>
+            </div>
+
+            <div className="bg-gradient-to-br from-emerald-500/10 via-white dark:via-slate-900 to-emerald-500/5 border border-emerald-200 dark:border-emerald-500/30 p-4 rounded-2xl shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Total Payments (Credit)</span>
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <ArrowDownLeft className="w-4 h-4" />
+                </div>
+              </div>
+              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 block mt-1 font-mono">
+                {formatCurrency(ledgerData.totalCredit)}
+              </span>
+              <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 block mt-1">Total customer settlements</span>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-500/10 via-white dark:via-slate-900 to-indigo-500/5 border border-indigo-200 dark:border-indigo-500/30 p-4 rounded-2xl shadow-sm">
+              <span className="text-xs font-extrabold text-indigo-700 dark:text-indigo-400 block mb-1">Closing Outstanding Due</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white font-mono">
+                {formatCurrency(ledgerData.closingBalance)}
+              </span>
+              <span className="text-[10px] text-indigo-600/70 dark:text-indigo-400/70 block mt-1">Current running balance owed</span>
+            </div>
+          </div>
+
+          {/* Date-wise Passbook Table */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden transition-colors">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/80">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  {ledgerData.party?.name} - Passbook Ledger Statement
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Chronological transaction history with dynamic running balance
+                </p>
+              </div>
+              <span className="text-xs font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/30">
+                {filteredEvents.length} Record(s)
+              </span>
+            </div>
+
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-800">
+                    <th className="py-3.5 px-4">Payment / Value Date</th>
+                    <th className="py-3.5 px-4">Type</th>
+                    <th className="py-3.5 px-4">Ref / Invoice #</th>
+                    <th className="py-3.5 px-4 text-right">Debit (₹)</th>
+                    <th className="py-3.5 px-4 text-right">Credit (₹)</th>
+                    <th className="py-3.5 px-4 text-right">Remaining Balance (₹)</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Mode / Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
+                  {filteredEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className="text-center py-12 text-slate-400">
+                        No transactions found for this party within the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredEvents.map((row, idx) => {
+                      const isDispatch = row.type === 'DISPATCH';
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                          <td className="py-3.5 px-4 font-mono font-medium text-slate-600 dark:text-slate-300">
+                            {new Date(row.date).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-flex items-center space-x-1 font-bold text-[11px] px-2.5 py-0.5 rounded-full border ${
+                                isDispatch
+                                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700/60'
+                                  : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60'
+                              }`}
+                            >
+                              <span>{isDispatch ? 'DISPATCH' : 'PAYMENT'}</span>
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                            {row.refNo}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
+                            {row.debit > 0 ? formatCurrency(row.debit) : '-'}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            {row.credit > 0 ? formatCurrency(row.credit) : '-'}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right font-mono font-black text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-950/50">
+                            {formatCurrency(row.remainingBalance)}
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            {isDispatch ? (
+                              <span
+                                className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border ${
+                                  row.paymentStatus === 'PAID'
+                                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                    : row.paymentStatus === 'PARTIAL'
+                                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                                }`}
+                              >
+                                {row.paymentStatus}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-black bg-teal-500/15 text-teal-600 dark:text-teal-300 px-2.5 py-1 rounded-full border border-teal-500/30 flex items-center gap-1 w-max">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>RECONCILED</span>
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 max-w-xs truncate">
+                            {row.notes}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default PartyLedger;
