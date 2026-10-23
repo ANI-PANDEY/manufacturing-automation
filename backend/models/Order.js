@@ -33,10 +33,14 @@ const orderItemSchema = new mongoose.Schema({
 
 const orderSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     orderNumber: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       uppercase: true,
     },
@@ -95,8 +99,9 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
-orderSchema.index({ party: 1 });
-orderSchema.index({ paymentStatus: 1 });
-orderSchema.index({ orderDate: -1 });
+orderSchema.index({ user: 1, orderNumber: 1 });
+orderSchema.index({ user: 1, party: 1 });
+orderSchema.index({ user: 1, paymentStatus: 1 });
+orderSchema.index({ user: 1, orderDate: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);

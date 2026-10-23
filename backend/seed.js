@@ -16,15 +16,21 @@ const seedData = async () => {
       return;
     }
 
-    console.log('Clearing old database records...');
-    await Party.deleteMany({});
-    await RawMaterial.deleteMany({});
-    await Product.deleteMany({});
-    await Order.deleteMany({});
-    await PaymentTransaction.deleteMany({});
+    console.log('Ensuring default Admin credentials...');
+    const adminUser = await ensureDefaultAdmin();
+    const adminId = adminUser ? adminUser._id : null;
+
+    console.log('Clearing old admin seed records...');
+    const deleteFilter = adminId ? { $or: [{ user: adminId }, { user: { $exists: false } }, { user: null }] } : {};
+    await Party.deleteMany(deleteFilter);
+    await RawMaterial.deleteMany(deleteFilter);
+    await Product.deleteMany(deleteFilter);
+    await Order.deleteMany(deleteFilter);
+    await PaymentTransaction.deleteMany(deleteFilter);
 
     console.log('Inserting Parties...');
     const apexSteel = await Party.create({
+      user: adminId,
       name: 'Apex Steel & Alloys Pvt Ltd',
       type: 'BOTH',
       phone: '+91 98201 12345',
@@ -36,6 +42,7 @@ const seedData = async () => {
     });
 
     const titanInd = await Party.create({
+      user: adminId,
       name: 'Titan Industrial Components',
       type: 'CUSTOMER',
       phone: '+91 98790 54321',
@@ -47,6 +54,7 @@ const seedData = async () => {
     });
 
     const globalVendor = await Party.create({
+      user: adminId,
       name: 'Global Precision Machining Ltd',
       type: 'VENDOR',
       phone: '+91 91100 88990',
@@ -59,6 +67,7 @@ const seedData = async () => {
 
     console.log('Inserting Finished Products...');
     const pipe = await Product.create({
+      user: adminId,
       productName: 'Heavy Duty Steel Pipes 50mm',
       sku: 'ST-PIPE-50',
       category: 'Steel Tubes',
@@ -69,6 +78,7 @@ const seedData = async () => {
     });
 
     const sheet = await Product.create({
+      user: adminId,
       productName: 'Aluminum Sheets 2mm Grade 6061',
       sku: 'AL-SHEET-2M',
       category: 'Aluminum Sheets',
@@ -79,6 +89,7 @@ const seedData = async () => {
     });
 
     const rod = await Product.create({
+      user: adminId,
       productName: 'Industrial Copper Rods 10mm',
       sku: 'CU-ROD-10',
       category: 'Copper Components',
@@ -90,6 +101,7 @@ const seedData = async () => {
 
     console.log('Inserting Inward Raw Materials...');
     await RawMaterial.create({
+      user: adminId,
       materialName: 'Cold Rolled Coil Grade CR-1',
       category: 'Coils & Sheets',
       vendor: globalVendor._id,
@@ -102,6 +114,7 @@ const seedData = async () => {
     });
 
     await RawMaterial.create({
+      user: adminId,
       materialName: 'Brass Billets Grade A',
       category: 'Non-Ferrous Metals',
       vendor: apexSteel._id,
@@ -116,6 +129,7 @@ const seedData = async () => {
     console.log('Creating Dispatch Orders & Invoices...');
     // Order 1 for Apex Steel: ₹2,00,000 Total
     const order1 = await Order.create({
+      user: adminId,
       orderNumber: 'INV-2026-0801',
       party: apexSteel._id,
       orderDate: new Date('2026-08-01'),
@@ -141,6 +155,7 @@ const seedData = async () => {
 
     // Order 2 for Apex Steel: ₹3,50,000 Total
     const order2 = await Order.create({
+      user: adminId,
       orderNumber: 'INV-2026-0810',
       party: apexSteel._id,
       orderDate: new Date('2026-08-10'),
@@ -170,6 +185,7 @@ const seedData = async () => {
 
     // Order for Titan Ind
     const orderTitan = await Order.create({
+      user: adminId,
       orderNumber: 'INV-2026-0805',
       party: titanInd._id,
       orderDate: new Date('2026-08-05'),
@@ -206,6 +222,7 @@ const seedData = async () => {
     await order1.save();
 
     await PaymentTransaction.create({
+      user: adminId,
       receiptNumber: 'RCP-2026-0001',
       party: apexSteel._id,
       paymentDate: new Date('2026-08-05'),
@@ -232,6 +249,7 @@ const seedData = async () => {
     await order1.save();
 
     await PaymentTransaction.create({
+      user: adminId,
       receiptNumber: 'RCP-2026-0002',
       party: apexSteel._id,
       paymentDate: new Date('2026-08-12'),

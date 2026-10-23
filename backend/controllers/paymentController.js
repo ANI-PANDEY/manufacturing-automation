@@ -12,6 +12,11 @@ const { generatePartyLedger } = require('../utils/ledgerEngine');
  */
 const receivePayment = async (req, res) => {
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+  const userFilter = req.userFilter || {};
+  const userId = mongoose.Types.ObjectId.isValid(req.userId)
+    ? new mongoose.Types.ObjectId(req.userId)
+    : req.userId;
+
   let session = null;
   if (isDbConnected) {
     try {
@@ -48,10 +53,12 @@ const receivePayment = async (req, res) => {
     const isValidPartyObjectId = isDbConnected && mongoose.Types.ObjectId.isValid(partyId);
 
     if (isValidPartyObjectId) {
-      party = await Party.findById(partyId).session(session || null);
+      party = await Party.findOne({ _id: partyId, ...userFilter }).session(session || null);
     }
     if (!party) {
-      party = store.parties.find((p) => p._id === partyId || p._id?.toString() === partyId);
+      party = store.parties.find(
+        (p) => (p._id === partyId || p._id?.toString() === partyId) && (req.isDemoAdmin || p.user === req.userId)
+      );
     }
 
     if (!party) {
@@ -62,43 +69,43 @@ const receivePayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Party not found' });
     }
 
-    const receiptNumber = `RCP-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
     const parsedPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
+    const receiptNumber = `RCP-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
     let unallocatedAmount = parsedAmountPaid;
     const allocations = [];
 
-    // Mode 1: SPECIFIC ORDER ALLOCATION
+    // Specific Order Allocation
     if (allocationType === 'SPECIFIC_ORDER' && targetOrderId) {
-      let specificOrder = null;
+      let targetOrder = null;
       if (isDbConnected && mongoose.Types.ObjectId.isValid(targetOrderId)) {
-        specificOrder = await Order.findById(targetOrderId).session(session || null);
+        targetOrder = await Order.findOne({ _id: targetOrderId, party: partyId, ...userFilter }).session(session || null);
       }
-      if (!specificOrder) {
-        specificOrder = store.orders.find((o) => o._id === targetOrderId || o._id?.toString() === targetOrderId);
+      if (!targetOrder) {
+        targetOrder = store.orders.find((o) => o._id === targetOrderId && (req.isDemoAdmin || o.user === req.userId));
       }
 
-      if (specificOrder && specificOrder.balanceDue > 0) {
-        const allocAmount = round2(Math.min(unallocatedAmount, specificOrder.balanceDue));
-        specificOrder.paidAmount = round2(specificOrder.paidAmount + allocAmount);
-        specificOrder.balanceDue = round2(specificOrder.balanceDue - allocAmount);
-        specificOrder.paymentStatus = specificOrder.balanceDue <= 0 ? 'PAID' : 'PARTIAL';
+      if (targetOrder) {
+        const allocAmount = round2(Math.min(unallocatedAmount, targetOrder.balanceDue));
+        targetOrder.paidAmount = round2(targetOrder.paidAmount + allocAmount);
+        targetOrder.balanceDue = round2(targetOrder.balanceDue - allocAmount);
+        targetOrder.paymentStatus = targetOrder.balanceDue <= 0 ? 'PAID' : 'PARTIAL';
 
-        if (isDbConnected && typeof specificOrder.save === 'function') {
-          await specificOrder.save({ session: session || null });
+        if (isDbConnected && typeof targetOrder.save === 'function') {
+          await targetOrder.save({ session: session || null });
         }
 
-        // Keep in-memory store.orders in sync
-        const memSpecific = store.orders.find((o) => o._id?.toString() === specificOrder._id?.toString());
-        if (memSpecific) {
-          memSpecific.paidAmount = round2(specificOrder.paidAmount);
-          memSpecific.balanceDue = round2(specificOrder.balanceDue);
-          memSpecific.paymentStatus = specificOrder.paymentStatus;
+        // Sync in-memory store
+        const memOrd = store.orders.find((o) => o._id === targetOrderId);
+        if (memOrd) {
+          memOrd.paidAmount = round2(targetOrder.paidAmount);
+          memOrd.balanceDue = round2(targetOrder.balanceDue);
+          memOrd.paymentStatus = targetOrder.paymentStatus;
         }
 
         allocations.push({
-          order: specificOrder._id,
-          orderNumber: specificOrder.orderNumber,
+          order: targetOrder._id,
+          orderNumber: targetOrder.orderNumber,
           amountAllocated: allocAmount,
         });
 
@@ -106,27 +113,34 @@ const receivePayment = async (req, res) => {
       }
     }
 
-    // Mode 2: FIFO ALLOCATION
+    // FIFO Waterfall Allocation
     if (unallocatedAmount > 0) {
       let unpaidOrders = [];
-      if (isValidPartyObjectId) {
+
+      if (isDbConnected && isValidPartyObjectId) {
         unpaidOrders = await Order.find({
           party: partyId,
-          balanceDue: { $gt: 0 },
+          paymentStatus: { $ne: 'PAID' },
+          ...userFilter,
         })
-          .sort({ orderDate: 1 })
+          .sort({ orderDate: 1, createdAt: 1 })
           .session(session || null);
       }
+
       if (!unpaidOrders || unpaidOrders.length === 0) {
-        unpaidOrders = store.orders
-          .filter((o) => (o.party?._id || o.party)?.toString() === partyId && o.balanceDue > 0)
-          .sort((a, b) => new Date(a.orderDate) - new Date(b.orderDate));
+        unpaidOrders = store.orders.filter(
+          (o) =>
+            (o.party?._id || o.party)?.toString() === partyId &&
+            o.paymentStatus !== 'PAID' &&
+            (req.isDemoAdmin || o.user === req.userId)
+        );
+        unpaidOrders.sort((a, b) => new Date(a.orderDate) - new Date(b.orderDate));
       }
 
       for (const ord of unpaidOrders) {
         if (unallocatedAmount <= 0) break;
 
-        const ordIdStr = ord._id?.toString() || ord._id;
+        const ordIdStr = ord._id?.toString() || ord.id;
         const existingAlloc = allocations.find((a) => (a.order?.toString() || a.order) === ordIdStr);
         if (existingAlloc && ord.balanceDue <= 0) continue;
 
@@ -161,8 +175,9 @@ const receivePayment = async (req, res) => {
       }
     }
 
-    // Record Payment Transaction
+    // Record Payment Transaction with user association
     const transactionPayload = {
+      user: userId,
       receiptNumber,
       party: party._id || partyId,
       paymentDate: parsedPaymentDate,
@@ -197,7 +212,7 @@ const receivePayment = async (req, res) => {
 
     store.payments.push(newTransactionData);
 
-    // Update Party Balance (Current debit balance reduced by credit payment)
+    // Update Party Balance
     party.currentBalance = round2((party.currentBalance || 0) - parsedAmountPaid);
 
     if (isDbConnected && typeof party.save === 'function') {
@@ -216,7 +231,7 @@ const receivePayment = async (req, res) => {
     }
 
     // Generate accurate updated ledger
-    const updatedLedger = await generatePartyLedger(partyId);
+    const updatedLedger = await generatePartyLedger(partyId, null, null, userFilter);
 
     return res.status(201).json({
       success: true,
@@ -235,23 +250,53 @@ const receivePayment = async (req, res) => {
 };
 
 /**
- * @desc Get payment transaction history for party
+ * @desc Get payment transaction history for party for the authenticated user
  * @route GET /api/payments/party/:partyId
  */
 const getPartyPayments = async (req, res) => {
   try {
     const { partyId } = req.params;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     let payments = [];
     if (isDbConnected && mongoose.Types.ObjectId.isValid(partyId)) {
-      payments = await PaymentTransaction.find({ party: partyId })
+      payments = await PaymentTransaction.find({ party: partyId, ...userFilter })
         .populate('party', 'name gstin')
         .sort({ paymentDate: -1 });
+      return res.json({ success: true, count: payments.length, payments });
     }
-    if (!payments || payments.length === 0) {
-      payments = store.payments.filter((p) => (p.party?._id || p.party)?.toString() === partyId);
+
+    payments = store.payments.filter(
+      (p) => (p.party?._id || p.party)?.toString() === partyId && (req.isDemoAdmin || p.user === req.userId)
+    );
+
+    return res.json({ success: true, count: payments.length, payments });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc Get all payment transactions for the authenticated user
+ * @route GET /api/payments
+ */
+const getAllPayments = async (req, res) => {
+  try {
+    const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
+
+    let payments = [];
+    if (isDbConnected) {
+      payments = await PaymentTransaction.find(userFilter)
+        .populate('party', 'name gstin')
+        .sort({ paymentDate: -1 });
+      return res.json({ success: true, count: payments.length, payments });
     }
+
+    payments = store.payments.filter(
+      (p) => req.isDemoAdmin || p.user === req.userId
+    );
 
     return res.json({ success: true, count: payments.length, payments });
   } catch (error) {
@@ -262,5 +307,5 @@ const getPartyPayments = async (req, res) => {
 module.exports = {
   receivePayment,
   getPartyPayments,
+  getAllPayments,
 };
-

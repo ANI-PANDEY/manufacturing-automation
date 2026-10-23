@@ -37,12 +37,15 @@ connectDB().then(async () => {
 });
 
 
+// Middleware to enforce user authentication & multi-tenant data isolation
+const { protect } = require('./middleware/authMiddleware');
+
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/parties', require('./routes/partyRoutes'));
-app.use('/api/payments', require('./routes/paymentRoutes'));
-app.use('/api/orders', require('./routes/orderRoutes'));
-app.use('/api/inventory', require('./routes/inventoryRoutes'));
+app.use('/api/parties', protect, require('./routes/partyRoutes'));
+app.use('/api/payments', protect, require('./routes/paymentRoutes'));
+app.use('/api/orders', protect, require('./routes/orderRoutes'));
+app.use('/api/inventory', protect, require('./routes/inventoryRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -8,7 +8,7 @@ const { round2 } = require('./mathUtils');
 /**
  * Builds a chronological Passbook Ledger for a given Party with 100% precision running balance
  */
-const generatePartyLedger = async (partyId, startDate = null, endDate = null) => {
+const generatePartyLedger = async (partyId, startDate = null, endDate = null, userFilter = {}) => {
   let party = null;
   let rawOrders = [];
   let rawPayments = [];
@@ -16,10 +16,10 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null) =>
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
 
   if (isDbConnected && mongoose.Types.ObjectId.isValid(partyId)) {
-    party = await Party.findById(partyId).lean();
+    party = await Party.findOne({ _id: partyId, ...userFilter }).lean();
     if (party) {
-      rawOrders = await Order.find({ party: partyId }).sort({ orderDate: 1 }).lean();
-      rawPayments = await PaymentTransaction.find({ party: partyId }).sort({ paymentDate: 1 }).lean();
+      rawOrders = await Order.find({ party: partyId, ...userFilter }).sort({ orderDate: 1 }).lean();
+      rawPayments = await PaymentTransaction.find({ party: partyId, ...userFilter }).sort({ paymentDate: 1 }).lean();
     }
   }
 

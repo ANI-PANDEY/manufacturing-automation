@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const rawMaterialSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     materialName: {
       type: String,
       required: [true, 'Raw material name is required'],
@@ -56,8 +61,8 @@ const rawMaterialSchema = new mongoose.Schema(
   }
 );
 
-rawMaterialSchema.index({ batchNumber: 1 });
-rawMaterialSchema.index({ vendor: 1 });
-rawMaterialSchema.index({ materialName: 1 });
+rawMaterialSchema.index({ user: 1, materialName: 1 });
+rawMaterialSchema.index({ user: 1, batchNumber: 1 });
+rawMaterialSchema.index({ user: 1, vendor: 1 });
 
 module.exports = mongoose.model('RawMaterial', rawMaterialSchema);

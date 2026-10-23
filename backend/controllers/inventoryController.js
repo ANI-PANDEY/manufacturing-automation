@@ -25,6 +25,10 @@ const inwardRawMaterial = async (req, res) => {
     } = req.body;
 
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
+    const userId = mongoose.Types.ObjectId.isValid(req.userId)
+      ? new mongoose.Types.ObjectId(req.userId)
+      : req.userId;
 
     if (!materialName || !vendorId || !batchNumber || !quantityInStock || !unitPrice) {
       return res.status(400).json({
@@ -37,10 +41,12 @@ const inwardRawMaterial = async (req, res) => {
     const isValidVendorObjectId = isDbConnected && mongoose.Types.ObjectId.isValid(vendorId);
 
     if (isValidVendorObjectId) {
-      vendor = await Party.findById(vendorId);
+      vendor = await Party.findOne({ _id: vendorId, ...userFilter });
     }
     if (!vendor) {
-      vendor = store.parties.find((p) => p._id === vendorId || p._id?.toString() === vendorId);
+      vendor = store.parties.find(
+        (p) => (p._id === vendorId || p._id?.toString() === vendorId) && (req.isDemoAdmin || p.user === req.userId)
+      );
     }
 
     if (!vendor) {
@@ -48,6 +54,7 @@ const inwardRawMaterial = async (req, res) => {
     }
 
     const rawMaterialPayload = {
+      user: userId,
       materialName: materialName.trim(),
       category: category ? category.trim() : 'Steel & Metals',
       vendor: vendor._id || vendorId,
@@ -62,20 +69,21 @@ const inwardRawMaterial = async (req, res) => {
 
     let rawMaterialData = null;
 
-    if (isValidVendorObjectId) {
-      try {
-        const rawMaterial = new RawMaterial(rawMaterialPayload);
-        await rawMaterial.save();
-        rawMaterialData = rawMaterial.toObject();
-      } catch (rmSaveErr) {
-        console.warn('[RawMaterial DB Save Fallback]:', rmSaveErr.message);
-      }
-    }
-
-    if (!rawMaterialData) {
+    if (isDbConnected) {
+      const rawMaterial = new RawMaterial(rawMaterialPayload);
+      await rawMaterial.save();
+      rawMaterialData = await RawMaterial.findById(rawMaterial._id).populate('vendor', 'name phone email gstin');
+    } else {
       rawMaterialData = {
         _id: `rm_${Date.now()}`,
         ...rawMaterialPayload,
+        vendor: {
+          _id: vendor._id,
+          name: vendor.name,
+          phone: vendor.phone,
+          email: vendor.email,
+          gstin: vendor.gstin,
+        },
         createdAt: new Date(),
       };
     }
@@ -93,28 +101,32 @@ const inwardRawMaterial = async (req, res) => {
 };
 
 /**
- * @desc List all raw materials
+ * @desc List all raw materials for the authenticated user
  * @route GET /api/inventory/raw-materials
  */
 const getRawMaterials = async (req, res) => {
   try {
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     let rawMaterials = [];
     if (isDbConnected) {
-      rawMaterials = await RawMaterial.find()
+      rawMaterials = await RawMaterial.find(userFilter)
         .populate('vendor', 'name phone email gstin')
         .sort({ createdAt: -1 });
+      return res.json({ success: true, count: rawMaterials.length, rawMaterials });
     }
-    if (!rawMaterials || rawMaterials.length === 0) {
-      rawMaterials = store.rawMaterials.map((rm) => {
+
+    // In-memory fallback: only show demo items if demo admin, otherwise empty
+    rawMaterials = store.rawMaterials
+      .filter((rm) => req.isDemoAdmin || rm.user === req.userId)
+      .map((rm) => {
         const vendorObj = store.parties.find((p) => p._id === (rm.vendor?._id || rm.vendor));
         return {
           ...rm,
           vendor: vendorObj || rm.vendor,
         };
       });
-    }
 
     return res.json({ success: true, count: rawMaterials.length, rawMaterials });
   } catch (error) {
@@ -123,18 +135,19 @@ const getRawMaterials = async (req, res) => {
 };
 
 /**
- * @desc Get all finished products
+ * @desc Get all finished products for the authenticated user
  * @route GET /api/inventory/products
  */
 const getProducts = async (req, res) => {
   try {
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     let products = [];
     if (isDbConnected) {
-      products = await Product.find().sort({ productName: 1 });
+      products = await Product.find(userFilter).sort({ productName: 1 });
     } else {
-      products = store.products;
+      products = store.products.filter((p) => req.isDemoAdmin || p.user === req.userId);
     }
 
     return res.json({ success: true, count: products.length, products });
@@ -144,13 +157,17 @@ const getProducts = async (req, res) => {
 };
 
 /**
- * @desc Create new product catalog item or add stock
+ * @desc Create new product catalog item or add stock for the user
  * @route POST /api/inventory/products
  */
 const createProduct = async (req, res) => {
   try {
     const { productName, sku, category, unit, stockQuantity, unitPrice, minStockLevel } = req.body;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
+    const userId = mongoose.Types.ObjectId.isValid(req.userId)
+      ? new mongoose.Types.ObjectId(req.userId)
+      : req.userId;
 
     if (!productName || !sku || !unitPrice) {
       return res.status(400).json({ success: false, message: 'Product name, SKU code, and Unit Price are required' });
@@ -159,7 +176,7 @@ const createProduct = async (req, res) => {
     const skuUpper = sku.trim().toUpperCase();
 
     if (isDbConnected) {
-      let product = await Product.findOne({ sku: skuUpper });
+      let product = await Product.findOne({ sku: skuUpper, ...userFilter });
       if (product) {
         product.stockQuantity += Number(stockQuantity || 0);
         product.unitPrice = round2(unitPrice);
@@ -168,6 +185,7 @@ const createProduct = async (req, res) => {
       }
 
       product = new Product({
+        user: userId,
         productName: productName.trim(),
         sku: skuUpper,
         category: category ? category.trim() : 'Finished Goods',
@@ -180,7 +198,9 @@ const createProduct = async (req, res) => {
       await product.save();
       return res.status(201).json({ success: true, message: 'Product created successfully', product });
     } else {
-      let product = store.products.find((p) => p.sku === skuUpper);
+      let product = store.products.find(
+        (p) => p.sku === skuUpper && (req.isDemoAdmin || p.user === req.userId)
+      );
       if (product) {
         product.stockQuantity += Number(stockQuantity || 0);
         product.unitPrice = round2(unitPrice);
@@ -189,6 +209,7 @@ const createProduct = async (req, res) => {
 
       product = {
         _id: `prod_${Date.now()}`,
+        user: req.userId,
         productName: productName.trim(),
         sku: skuUpper,
         category: category ? category.trim() : 'Finished Goods',
@@ -215,6 +236,7 @@ const restockProduct = async (req, res) => {
   try {
     const { productId, quantityToAdd, unitPrice } = req.body;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     if (!productId || quantityToAdd === undefined || quantityToAdd === null) {
       return res.status(400).json({ success: false, message: 'Product ID and quantity to add are required' });
@@ -228,7 +250,7 @@ const restockProduct = async (req, res) => {
     let updatedProduct = null;
 
     if (isDbConnected && mongoose.Types.ObjectId.isValid(productId)) {
-      const product = await Product.findById(productId);
+      const product = await Product.findOne({ _id: productId, ...userFilter });
       if (product) {
         product.stockQuantity += round2(qtyNum);
         if (unitPrice && Number(unitPrice) > 0) {
@@ -240,7 +262,9 @@ const restockProduct = async (req, res) => {
     }
 
     if (!updatedProduct) {
-      const prod = store.products.find((p) => p._id === productId || p._id?.toString() === productId);
+      const prod = store.products.find(
+        (p) => (p._id === productId || p._id?.toString() === productId) && (req.isDemoAdmin || p.user === req.userId)
+      );
       if (prod) {
         prod.stockQuantity = round2(prod.stockQuantity + qtyNum);
         if (unitPrice && Number(unitPrice) > 0) {
@@ -265,16 +289,17 @@ const restockProduct = async (req, res) => {
 };
 
 /**
- * @desc Restock existing raw material batch
+ * @desc Restock existing raw material batch (add quantity)
  * @route POST /api/inventory/raw-materials/restock
  */
 const restockRawMaterial = async (req, res) => {
   try {
-    const { materialId, quantityToAdd, unitPrice } = req.body;
+    const { rawMaterialId, quantityToAdd, unitPrice } = req.body;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
-    if (!materialId || quantityToAdd === undefined || quantityToAdd === null) {
-      return res.status(400).json({ success: false, message: 'Material ID and quantity to add are required' });
+    if (!rawMaterialId || quantityToAdd === undefined || quantityToAdd === null) {
+      return res.status(400).json({ success: false, message: 'Raw material ID and quantity to add are required' });
     }
 
     const qtyNum = Number(quantityToAdd);
@@ -282,39 +307,41 @@ const restockRawMaterial = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Quantity to add must be greater than 0' });
     }
 
-    let updatedMaterial = null;
+    let updatedRawMaterial = null;
 
-    if (isDbConnected && mongoose.Types.ObjectId.isValid(materialId)) {
-      const rm = await RawMaterial.findById(materialId);
+    if (isDbConnected && mongoose.Types.ObjectId.isValid(rawMaterialId)) {
+      const rm = await RawMaterial.findOne({ _id: rawMaterialId, ...userFilter });
       if (rm) {
         rm.quantityInStock += round2(qtyNum);
         if (unitPrice && Number(unitPrice) > 0) {
           rm.unitPrice = round2(unitPrice);
         }
         await rm.save();
-        updatedMaterial = rm.toObject();
+        updatedRawMaterial = await RawMaterial.findById(rm._id).populate('vendor', 'name phone email gstin');
       }
     }
 
-    if (!updatedMaterial) {
-      const rm = store.rawMaterials.find((m) => m._id === materialId || m._id?.toString() === materialId);
+    if (!updatedRawMaterial) {
+      const rm = store.rawMaterials.find(
+        (m) => (m._id === rawMaterialId || m._id?.toString() === rawMaterialId) && (req.isDemoAdmin || m.user === req.userId)
+      );
       if (rm) {
         rm.quantityInStock = round2(rm.quantityInStock + qtyNum);
         if (unitPrice && Number(unitPrice) > 0) {
           rm.unitPrice = round2(unitPrice);
         }
-        updatedMaterial = rm;
+        updatedRawMaterial = rm;
       }
     }
 
-    if (!updatedMaterial) {
+    if (!updatedRawMaterial) {
       return res.status(404).json({ success: false, message: 'Raw material batch not found' });
     }
 
     return res.json({
       success: true,
-      message: `Successfully restocked +${qtyNum} ${updatedMaterial.unit || 'units'} of ${updatedMaterial.materialName}`,
-      rawMaterial: updatedMaterial,
+      message: `Successfully added +${qtyNum} ${updatedRawMaterial.unit || 'Kg'} to ${updatedRawMaterial.materialName}`,
+      rawMaterial: updatedRawMaterial,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -322,16 +349,17 @@ const restockRawMaterial = async (req, res) => {
 };
 
 /**
- * @desc Delete product catalog item
+ * @desc Delete a product from catalog
  * @route DELETE /api/inventory/products/:id
  */
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     if (isDbConnected && mongoose.Types.ObjectId.isValid(id)) {
-      await Product.findByIdAndDelete(id);
+      await Product.findOneAndDelete({ _id: id, ...userFilter });
     }
     store.products = store.products.filter((p) => p._id !== id && p._id?.toString() !== id);
 
@@ -342,16 +370,17 @@ const deleteProduct = async (req, res) => {
 };
 
 /**
- * @desc Delete raw material batch
+ * @desc Delete a raw material batch
  * @route DELETE /api/inventory/raw-materials/:id
  */
 const deleteRawMaterial = async (req, res) => {
   try {
     const { id } = req.params;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     if (isDbConnected && mongoose.Types.ObjectId.isValid(id)) {
-      await RawMaterial.findByIdAndDelete(id);
+      await RawMaterial.findOneAndDelete({ _id: id, ...userFilter });
     }
     store.rawMaterials = store.rawMaterials.filter((m) => m._id !== id && m._id?.toString() !== id);
 
@@ -362,13 +391,17 @@ const deleteRawMaterial = async (req, res) => {
 };
 
 /**
- * @desc Bulk upload products (create new and/or update rates & stock of existing)
+ * @desc Bulk upload products for the user
  * @route POST /api/inventory/products/bulk-upload
  */
 const bulkUploadProducts = async (req, res) => {
   try {
     const { products, updateStock = true } = req.body;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
+    const userId = mongoose.Types.ObjectId.isValid(req.userId)
+      ? new mongoose.Types.ObjectId(req.userId)
+      : req.userId;
 
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({
@@ -414,6 +447,7 @@ const bulkUploadProducts = async (req, res) => {
 
       if (isDbConnected) {
         let existing = await Product.findOne({
+          ...userFilter,
           $or: [
             { sku: sku },
             { productName: { $regex: new RegExp(`^${productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
@@ -432,6 +466,7 @@ const bulkUploadProducts = async (req, res) => {
           processedItems.push({ action: 'UPDATED', product: existing });
         } else {
           const newProd = new Product({
+            user: userId,
             productName,
             sku,
             category,
@@ -446,7 +481,7 @@ const bulkUploadProducts = async (req, res) => {
         }
       } else {
         let existing = store.products.find(
-          (p) => p.sku === sku || p.productName.toLowerCase() === productName.toLowerCase()
+          (p) => (p.sku === sku || p.productName.toLowerCase() === productName.toLowerCase()) && (req.isDemoAdmin || p.user === req.userId)
         );
 
         if (existing) {
@@ -454,13 +489,14 @@ const bulkUploadProducts = async (req, res) => {
           if (category && category !== 'Finished Goods') existing.category = category;
           if (unit && unit !== 'Pieces') existing.unit = unit;
           if (updateStock && stockQuantity > 0) {
-            existing.stockQuantity = round2(existing.stockQuantity + stockQuantity);
+            existing.stockQuantity += stockQuantity;
           }
           updatedCount++;
           processedItems.push({ action: 'UPDATED', product: existing });
         } else {
           const newProd = {
             _id: `prod_${Date.now()}_${i}`,
+            user: req.userId,
             productName,
             sku,
             category,
@@ -479,17 +515,18 @@ const bulkUploadProducts = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Bulk processing complete! ${createdCount} new products created, ${updatedCount} existing rates updated.`,
-      summary: {
+      message: `Bulk processing complete: ${createdCount} created, ${updatedCount} updated, ${failedCount} errors.`,
+      stats: {
         totalReceived: products.length,
-        createdCount,
-        updatedCount,
-        failedCount,
-        errors,
+        created: createdCount,
+        updated: updatedCount,
+        failed: failedCount,
       },
-      processedItems,
+      errors,
+      items: processedItems,
     });
   } catch (error) {
+    console.error('Error in bulkUploadProducts:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -499,9 +536,9 @@ module.exports = {
   getRawMaterials,
   getProducts,
   createProduct,
-  bulkUploadProducts,
   restockProduct,
   restockRawMaterial,
   deleteProduct,
   deleteRawMaterial,
+  bulkUploadProducts,
 };

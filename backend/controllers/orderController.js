@@ -6,13 +6,17 @@ const store = require('../utils/inMemoryStore');
 const { round2 } = require('../utils/mathUtils');
 
 /**
- * @desc Create new dispatch invoice & deduct stock with 100% precision
+ * @desc Create new dispatch invoice & deduct stock for authenticated user
  * @route POST /api/orders
  */
 const createOrder = async (req, res) => {
   try {
     const { partyId, orderDate, items, taxRate = 18, dispatchNotes } = req.body;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
+    const userId = mongoose.Types.ObjectId.isValid(req.userId)
+      ? new mongoose.Types.ObjectId(req.userId)
+      : req.userId;
 
     if (!partyId || !items || !items.length) {
       return res.status(400).json({ success: false, message: 'Party ID and at least one order item are required' });
@@ -22,10 +26,12 @@ const createOrder = async (req, res) => {
     const isValidPartyObjectId = isDbConnected && mongoose.Types.ObjectId.isValid(partyId);
 
     if (isValidPartyObjectId) {
-      party = await Party.findById(partyId);
+      party = await Party.findOne({ _id: partyId, ...userFilter });
     }
     if (!party) {
-      party = store.parties.find((p) => p._id === partyId || p._id?.toString() === partyId);
+      party = store.parties.find(
+        (p) => (p._id === partyId || p._id?.toString() === partyId) && (req.isDemoAdmin || p.user === req.userId)
+      );
     }
 
     if (!party) {
@@ -38,10 +44,12 @@ const createOrder = async (req, res) => {
     for (const item of items) {
       let product = null;
       if (isDbConnected && mongoose.Types.ObjectId.isValid(item.productId)) {
-        product = await Product.findById(item.productId);
+        product = await Product.findOne({ _id: item.productId, ...userFilter });
       }
       if (!product) {
-        product = store.products.find((p) => p._id === item.productId || p._id?.toString() === item.productId);
+        product = store.products.find(
+          (p) => (p._id === item.productId || p._id?.toString() === item.productId) && (req.isDemoAdmin || p.user === req.userId)
+        );
       }
 
       if (!product) {
@@ -82,6 +90,7 @@ const createOrder = async (req, res) => {
     const orderNumber = `INV-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
     const orderPayload = {
+      user: userId,
       orderNumber,
       party: party._id || partyId,
       orderDate: orderDate ? new Date(orderDate) : new Date(),
@@ -142,42 +151,45 @@ const createOrder = async (req, res) => {
 };
 
 /**
- * @desc Get list of orders with filters
+ * @desc Get list of orders for authenticated user
  * @route GET /api/orders
  */
 const getOrders = async (req, res) => {
   try {
     const { partyId, paymentStatus } = req.query;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     let orders = [];
     if (isDbConnected && (!partyId || mongoose.Types.ObjectId.isValid(partyId))) {
-      const filter = {};
+      const filter = { ...userFilter };
       if (partyId) filter.party = partyId;
       if (paymentStatus) filter.paymentStatus = paymentStatus;
 
       orders = await Order.find(filter)
         .populate('party', 'name phone gstin email')
         .sort({ orderDate: -1 });
+
+      return res.json({ success: true, count: orders.length, orders });
     }
 
-    if (!orders || orders.length === 0) {
-      orders = store.orders.filter((o) => {
-        let match = true;
-        if (partyId && (o.party?._id || o.party)?.toString() !== partyId) match = false;
-        if (paymentStatus && o.paymentStatus !== paymentStatus) match = false;
-        return match;
-      });
+    // In-memory fallback
+    orders = store.orders.filter((o) => {
+      if (!req.isDemoAdmin && o.user !== req.userId) return false;
+      let match = true;
+      if (partyId && (o.party?._id || o.party)?.toString() !== partyId) match = false;
+      if (paymentStatus && o.paymentStatus !== paymentStatus) match = false;
+      return match;
+    });
 
-      // Populate party in memory
-      orders = orders.map((o) => {
-        const partyObj = store.parties.find((p) => p._id === (o.party?._id || o.party));
-        return {
-          ...o,
-          party: partyObj || o.party,
-        };
-      });
-    }
+    // Populate party in memory
+    orders = orders.map((o) => {
+      const partyObj = store.parties.find((p) => p._id === (o.party?._id || o.party));
+      return {
+        ...o,
+        party: partyObj || o.party,
+      };
+    });
 
     return res.json({ success: true, count: orders.length, orders });
   } catch (error) {
@@ -192,16 +204,19 @@ const getOrders = async (req, res) => {
 const getOrderById = async (req, res) => {
   try {
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
     let order = null;
 
     if (isDbConnected && mongoose.Types.ObjectId.isValid(req.params.id)) {
-      order = await Order.findById(req.params.id)
+      order = await Order.findOne({ _id: req.params.id, ...userFilter })
         .populate('party')
         .populate('items.product');
     }
 
     if (!order) {
-      order = store.orders.find((o) => o._id === req.params.id);
+      order = store.orders.find(
+        (o) => o._id === req.params.id && (req.isDemoAdmin || o.user === req.userId)
+      );
       if (order) {
         const partyObj = store.parties.find((p) => p._id === (order.party?._id || order.party));
         order = { ...order, party: partyObj };
@@ -222,69 +237,65 @@ const deleteOrder = async (req, res) => {
   try {
     const { id } = req.params;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
 
     let targetOrder = null;
 
     if (isDbConnected && mongoose.Types.ObjectId.isValid(id)) {
-      targetOrder = await Order.findById(id).populate('party');
+      targetOrder = await Order.findOne({ _id: id, ...userFilter }).populate('party');
     }
 
     if (!targetOrder) {
-      targetOrder = store.orders.find((o) => o._id === id || o._id?.toString() === id);
+      targetOrder = store.orders.find((o) => o._id === id && (req.isDemoAdmin || o.user === req.userId));
     }
 
     if (!targetOrder) {
-      return res.status(404).json({ success: false, message: 'Order / Invoice not found' });
+      return res.status(404).json({ success: false, message: 'Order invoice not found' });
     }
 
-    // 1. Restore stock quantity for all items in order
+    // Restore stock for all items
     if (targetOrder.items && targetOrder.items.length) {
       for (const item of targetOrder.items) {
         const prodId = item.product?._id || item.product;
-        const qtyToRestore = Number(item.quantity) || 0;
-
         if (isDbConnected && mongoose.Types.ObjectId.isValid(prodId)) {
-          const prod = await Product.findById(prodId);
-          if (prod) {
-            prod.stockQuantity = round2(prod.stockQuantity + qtyToRestore);
-            await prod.save();
+          const product = await Product.findOne({ _id: prodId, ...userFilter });
+          if (product) {
+            product.stockQuantity += Number(item.quantity) || 0;
+            await product.save();
           }
         }
-        const memProd = store.products.find((p) => p._id === prodId || p._id?.toString() === prodId);
+        const memProd = store.products.find((p) => (p._id === prodId || p._id?.toString() === prodId?.toString()));
         if (memProd) {
-          memProd.stockQuantity = round2(memProd.stockQuantity + qtyToRestore);
+          memProd.stockQuantity += Number(item.quantity) || 0;
         }
       }
     }
 
-    // 2. Adjust Party Current Balance (Subtract totalAmount or balanceDue from party.currentBalance)
-    const partyIdStr = (targetOrder.party?._id || targetOrder.party)?.toString();
-    const amountToDeduct = round2(targetOrder.totalAmount - (targetOrder.paidAmount || 0));
-
-    if (partyIdStr && amountToDeduct > 0) {
-      if (isDbConnected && mongoose.Types.ObjectId.isValid(partyIdStr)) {
-        const partyObj = await Party.findById(partyIdStr);
-        if (partyObj) {
-          partyObj.currentBalance = Math.max(0, round2(partyObj.currentBalance - amountToDeduct));
-          await partyObj.save();
+    // Revert Party Balance
+    const partyId = targetOrder.party?._id || targetOrder.party;
+    if (partyId) {
+      if (isDbConnected && mongoose.Types.ObjectId.isValid(partyId)) {
+        const party = await Party.findOne({ _id: partyId, ...userFilter });
+        if (party) {
+          party.currentBalance = round2((party.currentBalance || 0) - (targetOrder.totalAmount || 0));
+          await party.save();
         }
       }
-      const memParty = store.parties.find((p) => p._id?.toString() === partyIdStr || p.id?.toString() === partyIdStr);
+      const memParty = store.parties.find((p) => p._id === partyId || p._id?.toString() === partyId?.toString());
       if (memParty) {
-        memParty.currentBalance = Math.max(0, round2(memParty.currentBalance - amountToDeduct));
+        memParty.currentBalance = round2((memParty.currentBalance || 0) - (targetOrder.totalAmount || 0));
       }
     }
 
-    // 3. Delete from DB & Store
+    // Delete order
     if (isDbConnected && mongoose.Types.ObjectId.isValid(id)) {
-      await Order.findByIdAndDelete(id);
+      await Order.findOneAndDelete({ _id: id, ...userFilter });
     }
-
-    store.orders = store.orders.filter((o) => o._id?.toString() !== id?.toString());
+    store.orders = store.orders.filter((o) => o._id !== id);
 
     return res.json({
       success: true,
-      message: `Invoice ${targetOrder.orderNumber} deleted successfully. Stock and party balance restored.`,
+      message: `Invoice #${targetOrder.orderNumber} successfully canceled and deleted. Stock and party balance restored.`,
     });
   } catch (error) {
     console.error('Error in deleteOrder:', error);

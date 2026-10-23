@@ -61,17 +61,17 @@ const getUserFromToken = (token) => {
   }
 };
 
-// Automatically seed default admin account if database is empty
+// Automatically seed default admin account if database is empty and assign unassociated records to admin
 const ensureDefaultAdmin = async () => {
   try {
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
     if (isDbConnected) {
-      const userCount = await User.countDocuments();
-      if (userCount === 0) {
-        console.log('[Auth]: No users found in DB. Auto-seeding default Admin account...');
+      let admin = await User.findOne({ email: 'admin@manufacturer.com' });
+      if (!admin) {
+        console.log('[Auth]: No admin found in DB. Auto-seeding default Admin account...');
         const salt = generateSalt();
         const passwordHash = hashPassword('admin123', salt);
-        await User.create({
+        admin = await User.create({
           name: 'System Administrator',
           email: 'admin@manufacturer.com',
           passwordHash,
@@ -81,9 +81,29 @@ const ensureDefaultAdmin = async () => {
         });
         console.log('[Auth]: Default Admin user created in DB -> admin@manufacturer.com');
       }
+
+      // Assign any legacy unassociated records to the default admin so new users get a clean 0 start
+      if (admin) {
+        const Party = require('../models/Party');
+        const Product = require('../models/Product');
+        const RawMaterial = require('../models/RawMaterial');
+        const Order = require('../models/Order');
+        const PaymentTransaction = require('../models/PaymentTransaction');
+
+        const unassignedFilter = { $or: [{ user: { $exists: false } }, { user: null }] };
+        await Party.updateMany(unassignedFilter, { user: admin._id });
+        await Product.updateMany(unassignedFilter, { user: admin._id });
+        await RawMaterial.updateMany(unassignedFilter, { user: admin._id });
+        await Order.updateMany(unassignedFilter, { user: admin._id });
+        await PaymentTransaction.updateMany(unassignedFilter, { user: admin._id });
+
+        return admin;
+      }
     }
+    return null;
   } catch (err) {
     console.warn('[Auth Warning]: DB check skipped:', err.message);
+    return null;
   }
 };
 
@@ -330,4 +350,5 @@ exports.updateProfile = async (req, res, next) => {
 };
 
 exports.ensureDefaultAdmin = ensureDefaultAdmin;
+exports.getUserFromToken = getUserFromToken;
 

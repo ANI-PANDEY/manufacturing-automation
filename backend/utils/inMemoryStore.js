@@ -217,6 +217,13 @@ class InMemoryStore {
         createdAt: new Date('2026-08-12'),
       },
     ];
+
+    // Isolate initial demo records to default admin
+    this.parties.forEach((p) => (p.user = 'usr_admin_default'));
+    this.products.forEach((p) => (p.user = 'usr_admin_default'));
+    this.rawMaterials.forEach((rm) => (rm.user = 'usr_admin_default'));
+    this.orders.forEach((o) => (o.user = 'usr_admin_default'));
+    this.payments.forEach((pay) => (pay.user = 'usr_admin_default'));
   }
 }
 

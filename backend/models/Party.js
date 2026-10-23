@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const partySchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     name: {
       type: String,
       required: [true, 'Party name is required'],

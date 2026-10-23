@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     productName: {
       type: String,
       required: [true, 'Product name is required'],
@@ -10,7 +15,6 @@ const productSchema = new mongoose.Schema(
     sku: {
       type: String,
       required: [true, 'SKU code is required'],
-      unique: true,
       uppercase: true,
       trim: true,
     },
@@ -44,6 +48,7 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-productSchema.index({ productName: 1 });
+productSchema.index({ user: 1, productName: 1 });
+productSchema.index({ user: 1, sku: 1 });
 
 module.exports = mongoose.model('Product', productSchema);
