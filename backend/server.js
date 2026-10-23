@@ -12,6 +12,11 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Root test route
+app.get('/', (req, res) => {
+  res.json({ message: "Backend is running successfully!" });
+});
+
 // Connect Database & Ensure Initial Data
 const seedData = require('./seed.js');
 const { ensureDefaultAdmin } = require('./controllers/authController');
