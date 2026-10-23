@@ -41,9 +41,18 @@ app.use('/api/inventory', require('./routes/inventoryRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
+  const mongoose = require('mongoose');
+  const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+  const host = mongoose.connection ? mongoose.connection.host : null;
   res.json({
     status: 'OK',
     service: 'Manufacturing ERP API',
+    database: {
+      connected: isDbConnected,
+      host: host,
+      name: mongoose.connection ? mongoose.connection.name : null,
+      type: host && host.includes('mongodb.net') ? 'MongoDB Atlas (Cloud)' : 'Local / In-Memory',
+    },
     timestamp: new Date().toISOString(),
   });
 });
