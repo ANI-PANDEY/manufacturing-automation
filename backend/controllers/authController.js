@@ -130,18 +130,17 @@ exports.login = async (req, res, next) => {
     let user = null;
 
     if (isDbConnected) {
-      await ensureDefaultAdmin();
       user = await User.findOne({ email: cleanEmail });
     }
 
     // Fallback to in-memory store if DB not connected or user not in DB
-    if (!user) {
+    if (!user && Array.isArray(store.users)) {
       user = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
     }
 
-    // Emergency direct check for default admin credentials
+    // Direct check for default admin credentials if DB user was not loaded
     if (!user && cleanEmail === 'admin@manufacturer.com' && password === 'admin123') {
-      user = store.users[0];
+      user = Array.isArray(store.users) ? store.users[0] : null;
     }
 
     if (!user) {
@@ -196,7 +195,7 @@ exports.register = async (req, res, next) => {
     let existingUser = null;
     if (isDbConnected) {
       existingUser = await User.findOne({ email: cleanEmail });
-    } else {
+    } else if (Array.isArray(store.users)) {
       existingUser = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
     }
 
@@ -237,7 +236,9 @@ exports.register = async (req, res, next) => {
       };
     }
     // Always keep in memory store updated as well
-    store.users.push(newUserObj);
+    if (Array.isArray(store.users)) {
+      store.users.push(newUserObj);
+    }
 
     const token = generateSessionToken(newUserObj);
 
@@ -284,7 +285,7 @@ exports.resetPassword = async (req, res, next) => {
     let user = null;
     if (isDbConnected) {
       user = await User.findOne({ email: cleanEmail });
-    } else {
+    } else if (Array.isArray(store.users)) {
       user = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
     }
 
@@ -324,11 +325,13 @@ exports.resetPassword = async (req, res, next) => {
       await user.save();
     }
 
-    const memUser = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
-    if (memUser) {
-      memUser.salt = newSalt;
-      memUser.passwordHash = newPasswordHash;
-      memUser.securityCodeHash = newSecurityCodeHash;
+    if (Array.isArray(store.users)) {
+      const memUser = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
+      if (memUser) {
+        memUser.salt = newSalt;
+        memUser.passwordHash = newPasswordHash;
+        memUser.securityCodeHash = newSecurityCodeHash;
+      }
     }
 
     return res.json({

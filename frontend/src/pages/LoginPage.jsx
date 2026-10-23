@@ -15,13 +15,14 @@ import {
   Sparkles,
   Building2,
   CheckCircle2,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
   const { login, register, resetPassword } = useAuth();
 
-  // 'login' | 'register' | 'forgot'
+  // Mode switcher: 'login' | 'register' | 'forgot'
   const [authMode, setAuthMode] = useState('login');
 
   const [email, setEmail] = useState('');
@@ -51,17 +52,22 @@ const LoginPage = () => {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!email || !password) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
       setErrorMsg('Please enter both email and password.');
       return;
     }
 
     setLoading(true);
-    const result = await login(email, password);
-    setLoading(false);
-
-    if (!result.success) {
-      setErrorMsg(result.message);
+    try {
+      const result = await login(cleanEmail, password);
+      setLoading(false);
+      if (!result.success) {
+        setErrorMsg(result.message || 'Invalid email or password. Please try again.');
+      }
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg(err.response?.data?.message || err.message || 'Server connection error.');
     }
   };
 
@@ -70,31 +76,37 @@ const LoginPage = () => {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!name || !email || !password) {
+    const cleanEmail = email.trim();
+    if (!name.trim() || !cleanEmail || !password) {
       setErrorMsg('Name, email, and password are required.');
       return;
     }
 
     if (password.length < 4) {
-      setErrorMsg('Password must be at least 4 characters.');
+      setErrorMsg('Password must be at least 4 characters long.');
       return;
     }
 
     setLoading(true);
-    const result = await register({
-      name,
-      email,
-      password,
-      role,
-      companyName,
-      secretCode: secretCode.trim() || '1234',
-    });
-    setLoading(false);
+    try {
+      const result = await register({
+        name: name.trim(),
+        email: cleanEmail,
+        password,
+        role,
+        companyName: companyName.trim() || 'Manufacturing ERP Enterprise',
+        secretCode: secretCode.trim() || '1234',
+      });
+      setLoading(false);
 
-    if (!result.success) {
-      setErrorMsg(result.message);
-    } else {
-      setSuccessMsg('Account created successfully! Logging you in...');
+      if (!result.success) {
+        setErrorMsg(result.message || 'Registration failed. Email might already exist.');
+      } else {
+        setSuccessMsg('Account created successfully! Logging you in...');
+      }
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg(err.response?.data?.message || err.message || 'Registration server error.');
     }
   };
 
@@ -103,13 +115,16 @@ const LoginPage = () => {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!email || !secretCode || !password) {
-      setErrorMsg('Please fill in your email, secret recovery code, and new password.');
+    const cleanEmail = email.trim();
+    const cleanSecret = secretCode.trim();
+
+    if (!cleanEmail || !cleanSecret || !password) {
+      setErrorMsg('Please fill in your registered email, secret recovery code, and new password.');
       return;
     }
 
     if (password.length < 4) {
-      setErrorMsg('New password must be at least 4 characters.');
+      setErrorMsg('New password must be at least 4 characters long.');
       return;
     }
 
@@ -119,20 +134,25 @@ const LoginPage = () => {
     }
 
     setLoading(true);
-    const result = await resetPassword({
-      email,
-      secretCode,
-      newPassword: password,
-    });
-    setLoading(false);
+    try {
+      const result = await resetPassword({
+        email: cleanEmail,
+        secretCode: cleanSecret,
+        newPassword: password,
+      });
+      setLoading(false);
 
-    if (!result.success) {
-      setErrorMsg(result.message);
-    } else {
-      setSuccessMsg(result.message || 'Password reset successfully! You can now log in.');
-      setPassword('');
-      setConfirmPassword('');
-      setAuthMode('login');
+      if (!result.success) {
+        setErrorMsg(result.message || 'Password reset failed. Invalid secret recovery code.');
+      } else {
+        setSuccessMsg(result.message || 'Password reset successfully! Please sign in with your new password.');
+        setPassword('');
+        setConfirmPassword('');
+        setAuthMode('login');
+      }
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg(err.response?.data?.message || err.message || 'Error resetting password.');
     }
   };
 
@@ -147,7 +167,7 @@ const LoginPage = () => {
 
       <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10 p-6 sm:p-8">
         {/* Header Branding */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-cyan-400 shadow-lg shadow-sky-500/30 mb-3 transform hover:scale-105 transition">
             <Factory className="w-8 h-8 text-white" />
           </div>
@@ -158,15 +178,69 @@ const LoginPage = () => {
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            {authMode === 'register' && 'Register New Custom Manufacturer Account'}
-            {authMode === 'login' && 'Enter credentials to access the ERP Software'}
-            {authMode === 'forgot' && 'Reset Password using Secret Recovery Code'}
+            {authMode === 'login' && 'Sign in to access your factory dashboard'}
+            {authMode === 'register' && 'Create custom account (starts with fresh 0 data)'}
+            {authMode === 'forgot' && 'Reset forgotten password with your secret recovery code'}
           </p>
         </div>
 
-        {/* 1-Click Demo Credentials Quick Pill (Login Mode Only) */}
+        {/* 3-Mode Segmented Control Tabs */}
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-2xl mb-5">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('login');
+              setErrorMsg('');
+              setSuccessMsg('');
+            }}
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition ${
+              authMode === 'login'
+                ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Sign In</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('register');
+              setErrorMsg('');
+              setSuccessMsg('');
+            }}
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition ${
+              authMode === 'register'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>New User</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('forgot');
+              setErrorMsg('');
+              setSuccessMsg('');
+            }}
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition ${
+              authMode === 'forgot'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Forgot?</span>
+          </button>
+        </div>
+
+        {/* 1-Click Demo Credentials Pill (Login Mode Only) */}
         {authMode === 'login' && (
-          <div className="mb-6 p-3 rounded-2xl bg-sky-950/40 border border-sky-800/40 flex items-center justify-between">
+          <div className="mb-5 p-3 rounded-2xl bg-sky-950/40 border border-sky-800/40 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
               <div>
@@ -187,13 +261,13 @@ const LoginPage = () => {
         {/* Feedback Messages */}
         {errorMsg && (
           <div className="mb-4 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{errorMsg}</span>
           </div>
         )}
         {successMsg && (
           <div className="mb-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{successMsg}</span>
           </div>
         )}
@@ -228,9 +302,10 @@ const LoginPage = () => {
                     setPassword('');
                     setConfirmPassword('');
                   }}
-                  className="text-[11px] font-semibold text-sky-400 hover:text-sky-300 transition hover:underline"
+                  className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition underline underline-offset-2 flex items-center gap-1"
                 >
-                  Forgot Password? (पासवर्ड भूल गए?)
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Forgot Password? (पासवर्ड भूल गए?)</span>
                 </button>
               </div>
               <div className="relative">
@@ -256,7 +331,7 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-sky-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider"
+              className="w-full bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-sky-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider cursor-pointer"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
@@ -281,7 +356,7 @@ const LoginPage = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Aniket Pandey"
+                  placeholder="e.g. Rahul Sharma"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                   required
                 />
@@ -311,7 +386,7 @@ const LoginPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 4 characters"
+                  placeholder="Min 4 characters"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                   required
                 />
@@ -329,10 +404,10 @@ const LoginPage = () => {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold text-slate-300">
-                  Secret Recovery Code / PIN (सिक्रेट रिकवरी कोड)
+                  Secret Recovery Code / PIN (सिक्रेट कोड)
                 </label>
-                <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
-                  Save this!
+                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
+                  Save this PIN!
                 </span>
               </div>
               <div className="relative">
@@ -341,24 +416,24 @@ const LoginPage = () => {
                   type="text"
                   value={secretCode}
                   onChange={(e) => setSecretCode(e.target.value)}
-                  placeholder="e.g. 1234 or your private recovery PIN"
-                  className="w-full bg-slate-800/80 border border-amber-500/30 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
+                  placeholder="e.g. 1234 or your private PIN"
+                  className="w-full bg-slate-800/80 border border-amber-500/40 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                 />
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Agar aap kabhi password bhool gaye, toh is code se reset kar payenge (Default: 1234).
+                Password bhoolne par is code se reset hoga (Default: <strong>1234</strong>).
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Company / Organization</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Company / Factory Name</label>
               <div className="relative">
                 <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Apex Manufacturing Ltd"
+                  placeholder="e.g. Apex Industrial Works"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                 />
               </div>
@@ -380,7 +455,7 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-emerald-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider"
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-emerald-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider cursor-pointer"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
@@ -397,11 +472,14 @@ const LoginPage = () => {
         {/* ----------------- MODE 3: FORGOT PASSWORD ----------------- */}
         {authMode === 'forgot' && (
           <form onSubmit={handleResetPassword} className="space-y-4">
-            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2">
-              <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-              <span>
-                Apna account email, registration ke time diya gaya <strong>Secret Code</strong>, aur naya password daal kar password reset karein.
-              </span>
+            <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
+              <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5 text-amber-400" />
+              <div>
+                <p className="font-bold text-amber-200">Reset Your Password</p>
+                <p className="text-[11px] text-amber-300/90 mt-0.5">
+                  Apna registered email aur Secret Code daalein. Agar code nahi badla tha toh default <strong>1234</strong> daalein.
+                </p>
+              </div>
             </div>
 
             <div>
@@ -413,7 +491,7 @@ const LoginPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="yourname@company.com"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
               </div>
@@ -430,12 +508,12 @@ const LoginPage = () => {
                   value={secretCode}
                   onChange={(e) => setSecretCode(e.target.value)}
                   placeholder="e.g. 1234 or your secret PIN"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
+                  className="w-full bg-slate-800/80 border border-amber-500/40 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Tip: Agar aapne code nahi badla tha, toh default <strong>1234</strong> check karein.
+                Demo Admin account ke liye code: <strong>1234</strong>
               </p>
             </div>
 
@@ -448,7 +526,7 @@ const LoginPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter new password (min 4 characters)"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
                 <button
@@ -469,8 +547,8 @@ const LoginPage = () => {
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter new password"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                  placeholder="Re-type new password"
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
                 <button
@@ -486,7 +564,7 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-amber-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider"
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-amber-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider cursor-pointer"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
@@ -501,10 +579,20 @@ const LoginPage = () => {
         )}
 
         {/* Footer Navigation Between Modes */}
-        <div className="mt-6 text-center border-t border-slate-800 pt-4">
+        <div className="mt-5 text-center border-t border-slate-800 pt-4">
           {authMode === 'login' && (
-            <div>
-              <p className="text-xs text-slate-400">Need to set up a new custom user account?</p>
+            <div className="flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('forgot');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                className="font-bold text-amber-400 hover:text-amber-300 transition"
+              >
+                Forgot Password?
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -512,16 +600,15 @@ const LoginPage = () => {
                   setErrorMsg('');
                   setSuccessMsg('');
                 }}
-                className="mt-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition underline underline-offset-4"
+                className="font-bold text-sky-400 hover:text-sky-300 transition"
               >
-                Create New User Account (Zero Data Start)
+                Create Account →
               </button>
             </div>
           )}
 
           {authMode === 'register' && (
-            <div>
-              <p className="text-xs text-slate-400">Already have an account?</p>
+            <div className="flex items-center justify-between text-xs">
               <button
                 type="button"
                 onClick={() => {
@@ -529,17 +616,27 @@ const LoginPage = () => {
                   setErrorMsg('');
                   setSuccessMsg('');
                 }}
-                className="mt-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition underline underline-offset-4 inline-flex items-center gap-1"
+                className="font-bold text-sky-400 hover:text-sky-300 transition inline-flex items-center gap-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Switch to Sign In</span>
+                <span>Sign In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('forgot');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                className="font-bold text-amber-400 hover:text-amber-300 transition"
+              >
+                Forgot Password?
               </button>
             </div>
           )}
 
           {authMode === 'forgot' && (
-            <div>
-              <p className="text-xs text-slate-400">Remember your password?</p>
+            <div className="text-center text-xs">
               <button
                 type="button"
                 onClick={() => {
@@ -547,7 +644,7 @@ const LoginPage = () => {
                   setErrorMsg('');
                   setSuccessMsg('');
                 }}
-                className="mt-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition underline underline-offset-4 inline-flex items-center gap-1"
+                className="font-bold text-sky-400 hover:text-sky-300 transition inline-flex items-center gap-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to Sign In</span>

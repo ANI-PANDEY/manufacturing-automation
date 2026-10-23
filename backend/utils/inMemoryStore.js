@@ -218,6 +218,25 @@ class InMemoryStore {
       },
     ];
 
+    // Initialize in-memory users array
+    const crypto = require('crypto');
+    const adminSalt = 'admin_default_salt_2026';
+    const adminHash = crypto.createHmac('sha256', adminSalt).update('admin123').digest('hex');
+    const adminSecurityHash = crypto.createHmac('sha256', adminSalt).update('1234').digest('hex');
+
+    this.users = [
+      {
+        _id: 'usr_admin_default',
+        name: 'System Administrator',
+        email: 'admin@manufacturer.com',
+        passwordHash: adminHash,
+        salt: adminSalt,
+        securityCodeHash: adminSecurityHash,
+        role: 'ADMIN',
+        companyName: 'Manufacturing ERP Enterprise',
+      },
+    ];
+
     // Isolate initial demo records to default admin
     this.parties.forEach((p) => (p.user = 'usr_admin_default'));
     this.products.forEach((p) => (p.user = 'usr_admin_default'));

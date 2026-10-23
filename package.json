@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Manufacturing ERP & Split Payment Reconciliation System Root Launcher",
   "scripts": {
+    "build": "cd frontend && npm install && npm run build && cp -r dist ../dist",
     "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "start": "concurrently \"npm --prefix backend start\" \"npm --prefix frontend run dev\"",
     "seed": "npm --prefix backend run seed",
