@@ -1,8 +1,8 @@
 export const translations = {
   en: {
     // Brand & Header
-    appTitle: 'PRO-MFG ERP',
-    appSubtitle: 'Manufacturing & Split Payment Reconciliation System',
+    appTitle: 'StackPulse ERP',
+    appSubtitle: 'Enterprise Manufacturing & Split Payment Reconciliation System',
     overviewDashboard: 'Overview Dashboard',
     partyLedger: 'Party Passbook Ledger',
     partyDirectory: 'Party & Client Directory',
@@ -82,7 +82,7 @@ export const translations = {
 
   hi: {
     // Brand & Header
-    appTitle: 'प्रो-एमएफजी ईआरपी',
+    appTitle: 'StackPulse ईआरपी',
     appSubtitle: 'मैन्युफैक्चरिंग एवं पार्ट पेमेंट हिसाब प्रणाली',
     overviewDashboard: 'ओवरव्यू डैशबोर्ड',
     partyLedger: 'पार्टी पासबुक लेजर (खाता)',
@@ -163,7 +163,7 @@ export const translations = {
 
   hi_en: {
     // Brand & Header
-    appTitle: 'PRO-MFG ERP',
+    appTitle: 'StackPulse ERP',
     appSubtitle: 'Manufacturing aur Split Payment Reconciliation System',
     overviewDashboard: 'Overview Dashboard',
     partyLedger: 'Party Passbook Ledger (Khata)',

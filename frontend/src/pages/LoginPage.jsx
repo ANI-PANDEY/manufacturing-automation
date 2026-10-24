@@ -30,7 +30,7 @@ const LoginPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [secretCode, setSecretCode] = useState('');
-  const [companyName, setCompanyName] = useState('Manufacturing ERP Enterprise');
+  const [companyName, setCompanyName] = useState('StackPulse Enterprise');
   const [role, setRole] = useState('ADMIN');
 
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +41,7 @@ const LoginPage = () => {
   const [successMsg, setSuccessMsg] = useState('');
 
   const fillAdminCredentials = () => {
-    setEmail('admin@manufacturer.com');
+    setEmail('admin@stackpulse.com');
     setPassword('admin123');
     setSecretCode('1234');
     setErrorMsg('');
@@ -168,18 +168,18 @@ const LoginPage = () => {
       <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10 p-6 sm:p-8">
         {/* Header Branding */}
         <div className="text-center mb-5">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-cyan-400 shadow-lg shadow-sky-500/30 mb-3 transform hover:scale-105 transition">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-cyan-400 shadow-lg shadow-sky-500/30 mb-3 transform hover:scale-105 transition">
             <Factory className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
-            <span>Manufacturing ERP</span>
+          <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+            <span>StackPulse</span>
             <span className="bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">
-              ENTERPRISE
+              ENTERPRISE ERP
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            {authMode === 'login' && 'Sign in to access your factory dashboard'}
-            {authMode === 'register' && 'Create custom account (starts with fresh 0 data)'}
+            {authMode === 'login' && 'Sign in with your @stackpulse.com ID or Email'}
+            {authMode === 'register' && 'Create your StackPulse account (fresh 0 start)'}
             {authMode === 'forgot' && 'Reset forgotten password with your secret recovery code'}
           </p>
         </div>
@@ -245,13 +245,13 @@ const LoginPage = () => {
               <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
               <div>
                 <p className="text-xs font-bold text-sky-200">Default Demo Admin</p>
-                <p className="text-[11px] text-sky-400/80">admin@manufacturer.com • admin123</p>
+                <p className="text-[11px] text-sky-400/80">admin@stackpulse.com • admin123</p>
               </div>
             </div>
             <button
               type="button"
               onClick={fillAdminCredentials}
-              className="text-xs font-extrabold bg-sky-500 hover:bg-sky-400 text-slate-950 px-3 py-1.5 rounded-xl shadow transition"
+              className="text-xs font-extrabold bg-sky-500 hover:bg-sky-400 text-slate-950 px-3 py-1.5 rounded-xl shadow transition cursor-pointer"
             >
               1-Click Fill
             </button>
@@ -276,18 +276,28 @@ const LoginPage = () => {
         {authMode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Email Address</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-300">Username / StackPulse Email</label>
+                <span className="text-[10px] text-sky-400 font-mono bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                  @stackpulse.com
+                </span>
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@manufacturer.com"
+                  placeholder="e.g. aniket or aniket@stackpulse.com"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                   required
                 />
               </div>
+              {email && !email.includes('@') && (
+                <p className="text-[10px] text-sky-400/90 mt-1 pl-1 font-mono">
+                  Logging in as: <strong>{email.trim().toLowerCase()}@stackpulse.com</strong>
+                </p>
+              )}
             </div>
 
             <div>
@@ -364,18 +374,31 @@ const LoginPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Email Address</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-300">
+                  StackPulse Username or Email *
+                </label>
+                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  @stackpulse.com
+                </span>
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                  placeholder="e.g. aniket or aniket@stackpulse.com"
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
                   required
                 />
               </div>
+              <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                Your login ID will be:{' '}
+                <strong className="text-emerald-400 font-mono">
+                  {email ? (email.includes('@') ? email.trim() : `${email.trim().toLowerCase()}@stackpulse.com`) : 'username@stackpulse.com'}
+                </strong>
+              </p>
             </div>
 
             <div>
@@ -433,7 +456,7 @@ const LoginPage = () => {
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. Apex Industrial Works"
+                  placeholder="e.g. StackPulse Enterprise or your factory name"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                 />
               </div>
@@ -483,18 +506,30 @@ const LoginPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Registered Email Address</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-300">
+                  StackPulse Username or Email
+                </label>
+                <span className="text-[10px] text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  @stackpulse.com
+                </span>
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="yourname@company.com"
+                  placeholder="e.g. aniket or aniket@stackpulse.com"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
               </div>
+              {email && !email.includes('@') && (
+                <p className="text-[10px] text-amber-400/90 mt-1 pl-1 font-mono">
+                  Resetting account for: <strong>{email.trim().toLowerCase()}@stackpulse.com</strong>
+                </p>
+              )}
             </div>
 
             <div>
@@ -513,7 +548,7 @@ const LoginPage = () => {
                 />
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Demo Admin account ke liye code: <strong>1234</strong>
+                Default Admin (admin@stackpulse.com) code: <strong>1234</strong>
               </p>
             </div>
 

@@ -43,7 +43,7 @@ const Navbar = ({
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  const currentCompanyName = user?.companyName || 'Manufacturing ERP Enterprise';
+  const currentCompanyName = user?.companyName || 'StackPulse Enterprise';
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -96,7 +96,7 @@ const Navbar = ({
 
               <div className="flex items-center space-x-2">
                 <span className="font-extrabold text-sm sm:text-lg tracking-tight text-slate-900 dark:text-white whitespace-nowrap hidden min-[360px]:inline">
-                  {t('appTitle') || 'Manufacturing ERP'}
+                  {t('appTitle') || 'StackPulse ERP'}
                 </span>
 
                 {/* Unified Enterprise & Industry Pill */}

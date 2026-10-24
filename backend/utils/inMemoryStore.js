@@ -227,13 +227,13 @@ class InMemoryStore {
     this.users = [
       {
         _id: 'usr_admin_default',
-        name: 'System Administrator',
-        email: 'admin@manufacturer.com',
+        name: 'StackPulse Administrator',
+        email: 'admin@stackpulse.com',
         passwordHash: adminHash,
         salt: adminSalt,
         securityCodeHash: adminSecurityHash,
         role: 'ADMIN',
-        companyName: 'Manufacturing ERP Enterprise',
+        companyName: 'StackPulse Enterprise',
       },
     ];
 

@@ -39,10 +39,21 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
+  // Helper to normalize username/email with @stackpulse.com domain
+  const normalizeEmail = (input) => {
+    if (!input) return '';
+    let clean = String(input).toLowerCase().trim();
+    if (!clean.includes('@')) {
+      clean = `${clean}@stackpulse.com`;
+    }
+    return clean;
+  };
+
   const login = async (email, password) => {
     setLoading(true);
+    const cleanEmail = normalizeEmail(email);
     try {
-      const res = await authService.login({ email, password });
+      const res = await authService.login({ email: cleanEmail, password });
       if (res.data?.success) {
         const { token: newToken, user: userData } = res.data;
         localStorage.setItem('erp_token', newToken);
@@ -59,13 +70,13 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.warn('[Login]: Network/Server error, attempting offline admin check:', err.message);
       // Fail-safe client offline check for admin account
-      if (email.toLowerCase().trim() === 'admin@manufacturer.com' && password === 'admin123') {
+      if ((cleanEmail === 'admin@stackpulse.com' || cleanEmail === 'admin@manufacturer.com') && password === 'admin123') {
         const fallbackUser = {
           id: 'usr_admin_default',
-          name: 'System Administrator',
-          email: 'admin@manufacturer.com',
+          name: 'StackPulse Administrator',
+          email: 'admin@stackpulse.com',
           role: 'ADMIN',
-          companyName: 'Manufacturing ERP Enterprise',
+          companyName: 'StackPulse Enterprise',
         };
         const fallbackToken = 'offline_token_admin_2026';
         localStorage.setItem('erp_token', fallbackToken);
@@ -84,8 +95,14 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     setLoading(true);
+    const cleanEmail = normalizeEmail(userData.email);
+    const payload = {
+      ...userData,
+      email: cleanEmail,
+      companyName: userData.companyName || 'StackPulse Enterprise',
+    };
     try {
-      const res = await authService.register(userData);
+      const res = await authService.register(payload);
       if (res.data?.success) {
         const { token: newToken, user: newUserData } = res.data;
         localStorage.setItem('erp_token', newToken);
@@ -103,10 +120,10 @@ export const AuthProvider = ({ children }) => {
       // Local registration fallback if server is offline
       const fallbackUser = {
         id: `usr_${Date.now()}`,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role || 'ADMIN',
-        companyName: userData.companyName || 'Manufacturing ERP Enterprise',
+        name: payload.name,
+        email: payload.email,
+        role: payload.role || 'ADMIN',
+        companyName: payload.companyName || 'StackPulse Enterprise',
       };
       const fallbackToken = `offline_token_${Date.now()}`;
       localStorage.setItem('erp_token', fallbackToken);
@@ -144,8 +161,9 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = async ({ email, secretCode, newPassword }) => {
     setLoading(true);
+    const cleanEmail = normalizeEmail(email);
     try {
-      const res = await authService.resetPassword({ email, secretCode, newPassword });
+      const res = await authService.resetPassword({ email: cleanEmail, secretCode, newPassword });
       setLoading(false);
       return { success: true, message: res.data?.message || 'Password reset successfully!' };
     } catch (err) {

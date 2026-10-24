@@ -13,18 +13,29 @@ const generateSalt = () => {
   return crypto.randomBytes(16).toString('hex');
 };
 
+// Helper to normalize username or email with @stackpulse.com domain
+const normalizeEmail = (input) => {
+  if (!input) return '';
+  let clean = String(input).toLowerCase().trim();
+  if (!clean.includes('@')) {
+    clean = `${clean}@stackpulse.com`;
+  }
+  return clean;
+};
+
 // Initialize in-memory users list on store if not present
 if (!store.users) {
   const defaultSalt = 'defaultsalt123';
   store.users = [
     {
       _id: 'usr_admin_default',
-      name: 'System Administrator',
-      email: 'admin@manufacturer.com',
+      name: 'StackPulse Administrator',
+      email: 'admin@stackpulse.com',
       passwordHash: hashPassword('admin123', defaultSalt),
       salt: defaultSalt,
+      securityCodeHash: hashPassword('1234', defaultSalt),
       role: 'ADMIN',
-      companyName: 'Manufacturing ERP Enterprise',
+      companyName: 'StackPulse Enterprise',
       createdAt: new Date(),
     },
   ];
@@ -43,7 +54,7 @@ const generateSessionToken = (user) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        companyName: user.companyName || 'Manufacturing ERP Enterprise',
+        companyName: user.companyName || 'StackPulse Enterprise',
       })
     ).toString('base64')
   );
@@ -66,25 +77,37 @@ const ensureDefaultAdmin = async () => {
   try {
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
     if (isDbConnected) {
-      let admin = await User.findOne({ email: 'admin@manufacturer.com' });
+      let admin = await User.findOne({
+        $or: [{ email: 'admin@stackpulse.com' }, { email: 'admin@manufacturer.com' }],
+      });
       if (!admin) {
-        console.log('[Auth]: No admin found in DB. Auto-seeding default Admin account...');
+        console.log('[Auth]: No admin found in DB. Auto-seeding default StackPulse Admin account...');
         const salt = generateSalt();
         const passwordHash = hashPassword('admin123', salt);
         const securityCodeHash = hashPassword('1234', salt);
         admin = await User.create({
-          name: 'System Administrator',
-          email: 'admin@manufacturer.com',
+          name: 'StackPulse Administrator',
+          email: 'admin@stackpulse.com',
           passwordHash,
           salt,
           securityCodeHash,
           role: 'ADMIN',
-          companyName: 'Manufacturing ERP Enterprise',
+          companyName: 'StackPulse Enterprise',
         });
-        console.log('[Auth]: Default Admin user created in DB -> admin@manufacturer.com');
-      } else if (!admin.securityCodeHash) {
-        admin.securityCodeHash = hashPassword('1234', admin.salt);
-        await admin.save();
+        console.log('[Auth]: Default StackPulse Admin user created in DB -> admin@stackpulse.com');
+      } else {
+        let changed = false;
+        if (!admin.securityCodeHash) {
+          admin.securityCodeHash = hashPassword('1234', admin.salt);
+          changed = true;
+        }
+        if (admin.email === 'admin@manufacturer.com') {
+          admin.email = 'admin@stackpulse.com';
+          changed = true;
+        }
+        if (changed) {
+          await admin.save();
+        }
       }
 
       // Assign any legacy unassociated records to the default admin so new users get a clean 0 start
@@ -124,22 +147,31 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = normalizeEmail(email);
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
 
     let user = null;
+    const isDefaultAdmin = cleanEmail === 'admin@stackpulse.com' || cleanEmail === 'admin@manufacturer.com';
 
     if (isDbConnected) {
-      user = await User.findOne({ email: cleanEmail });
+      user = await User.findOne(
+        isDefaultAdmin
+          ? { $or: [{ email: 'admin@stackpulse.com' }, { email: 'admin@manufacturer.com' }] }
+          : { email: cleanEmail }
+      );
     }
 
     // Fallback to in-memory store if DB not connected or user not in DB
     if (!user && Array.isArray(store.users)) {
-      user = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
+      user = store.users.find(
+        (u) =>
+          u.email.toLowerCase() === cleanEmail ||
+          (isDefaultAdmin && (u.email.toLowerCase() === 'admin@stackpulse.com' || u.email.toLowerCase() === 'admin@manufacturer.com'))
+      );
     }
 
     // Direct check for default admin credentials if DB user was not loaded
-    if (!user && cleanEmail === 'admin@manufacturer.com' && password === 'admin123') {
+    if (!user && isDefaultAdmin && password === 'admin123') {
       user = Array.isArray(store.users) ? store.users[0] : null;
     }
 
@@ -189,7 +221,7 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = normalizeEmail(email);
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
 
     let existingUser = null;
@@ -202,7 +234,7 @@ exports.register = async (req, res, next) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'An account with this email already exists',
+        message: `An account with ${cleanEmail} already exists. Please sign in.`,
       });
     }
 
@@ -220,7 +252,7 @@ exports.register = async (req, res, next) => {
       salt,
       securityCodeHash,
       role: role || 'ADMIN',
-      companyName: companyName || 'Manufacturing ERP Enterprise',
+      companyName: companyName || 'StackPulse Enterprise',
     };
 
     let newUserObj = null;
@@ -278,21 +310,31 @@ exports.resetPassword = async (req, res, next) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = normalizeEmail(email);
     const cleanSecretCode = String(secretCode).trim().toLowerCase();
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
 
     let user = null;
+    const isDefaultAdmin = cleanEmail === 'admin@stackpulse.com' || cleanEmail === 'admin@manufacturer.com';
+
     if (isDbConnected) {
-      user = await User.findOne({ email: cleanEmail });
+      user = await User.findOne(
+        isDefaultAdmin
+          ? { $or: [{ email: 'admin@stackpulse.com' }, { email: 'admin@manufacturer.com' }] }
+          : { email: cleanEmail }
+      );
     } else if (Array.isArray(store.users)) {
-      user = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
+      user = store.users.find(
+        (u) =>
+          u.email.toLowerCase() === cleanEmail ||
+          (isDefaultAdmin && (u.email.toLowerCase() === 'admin@stackpulse.com' || u.email.toLowerCase() === 'admin@manufacturer.com'))
+      );
     }
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'No account found with this email address.',
+        message: `No account found with '${cleanEmail}'. Please verify your username/email.`,
       });
     }
 

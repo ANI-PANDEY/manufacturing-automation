@@ -24,9 +24,9 @@ const protect = async (req, res, next) => {
     if (token === 'offline_token_admin_2026') {
       req.user = {
         id: 'usr_admin_default',
-        email: 'admin@manufacturer.com',
+        email: 'admin@stackpulse.com',
         role: 'ADMIN',
-        name: 'System Administrator',
+        name: 'StackPulse Administrator',
       };
       req.userId = 'usr_admin_default';
       req.isDemoAdmin = true;
@@ -45,7 +45,10 @@ const protect = async (req, res, next) => {
     req.user = decoded;
     req.userId = decoded.id;
 
-    const isDemoAdmin = decoded.email === 'admin@manufacturer.com' || decoded.id === 'usr_admin_default';
+    const isDemoAdmin =
+      decoded.email === 'admin@stackpulse.com' ||
+      decoded.email === 'admin@manufacturer.com' ||
+      decoded.id === 'usr_admin_default';
     req.isDemoAdmin = isDemoAdmin;
 
     if (isDemoAdmin) {
