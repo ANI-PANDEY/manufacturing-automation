@@ -68,7 +68,7 @@ export const translations = {
     savePaymentBtn: 'Save & Reconcile Payment',
 
     // Quick Guide
-    quickGuideTitle: 'How to Use Manufacturing ERP',
+    quickGuideTitle: 'How to Use StackPulse ERP',
     quickGuideSubtitle: '4 simple steps to manage stock, orders, and customer payment passbooks',
     step1Title: 'Add B2B Parties',
     step1Desc: 'Register your customers and vendor suppliers with GSTIN & credit limits.',

@@ -178,6 +178,17 @@ const Navbar = ({
                 <span className="hidden sm:inline text-[11px]">Invoice</span>
               </button>
 
+              {/* Direct Prominent Reset Password Button on Navbar */}
+              <button
+                onClick={() => onOpenResetPasswordModal && onOpenResetPasswordModal()}
+                className="flex items-center space-x-1 sm:space-x-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2 sm:px-3 py-1.5 rounded-xl font-extrabold text-xs transition cursor-pointer shadow-sm active:scale-95"
+                title="Reset or Change Password with Secret PIN"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                <span className="hidden sm:inline">Reset Password</span>
+                <span className="sm:hidden text-[10px]">PIN/Pass</span>
+              </button>
+
               {/* User Profile & System Controls Dropdown */}
               <div className="relative" ref={dropdownRef}>
                 <button

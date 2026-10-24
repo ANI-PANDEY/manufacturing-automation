@@ -146,7 +146,7 @@ const App = () => {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-xs font-bold text-slate-400">Authenticating Manufacturing ERP...</p>
+          <p className="text-xs font-bold text-slate-400">Authenticating StackPulse ERP...</p>
         </div>
       </div>
     );
