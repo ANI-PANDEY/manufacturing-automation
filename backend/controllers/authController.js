@@ -77,9 +77,36 @@ const ensureDefaultAdmin = async () => {
   try {
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
     if (isDbConnected) {
-      let admin = await User.findOne({
-        $or: [{ email: 'admin@stackpulse.com' }, { email: 'admin@manufacturer.com' }],
-      });
+      // Migrate any legacy manufacturer admin account to StackPulse admin and purge manufacturer records
+      const legacyAdmin = await User.findOne({ email: 'admin@manufacturer.com' });
+      let admin = await User.findOne({ email: 'admin@stackpulse.com' });
+
+      if (legacyAdmin && admin) {
+        const Party = require('../models/Party');
+        const Product = require('../models/Product');
+        const RawMaterial = require('../models/RawMaterial');
+        const Order = require('../models/Order');
+        const PaymentTransaction = require('../models/PaymentTransaction');
+
+        await Party.updateMany({ user: legacyAdmin._id }, { user: admin._id });
+        await Product.updateMany({ user: legacyAdmin._id }, { user: admin._id });
+        await RawMaterial.updateMany({ user: legacyAdmin._id }, { user: admin._id });
+        await Order.updateMany({ user: legacyAdmin._id }, { user: admin._id });
+        await PaymentTransaction.updateMany({ user: legacyAdmin._id }, { user: admin._id });
+
+        await User.deleteMany({ email: 'admin@manufacturer.com' });
+        console.log('[Auth]: Legacy admin@manufacturer.com purged from DB.');
+      } else if (legacyAdmin && !admin) {
+        legacyAdmin.email = 'admin@stackpulse.com';
+        legacyAdmin.name = 'StackPulse Administrator';
+        legacyAdmin.companyName = 'StackPulse Enterprise';
+        await legacyAdmin.save();
+        admin = legacyAdmin;
+        console.log('[Auth]: Legacy admin@manufacturer.com converted to admin@stackpulse.com.');
+      }
+
+      // Purge any other leftover @manufacturer.com accounts
+      await User.deleteMany({ email: /@manufacturer\.com$/i });
       if (!admin) {
         console.log('[Auth]: No admin found in DB. Auto-seeding default StackPulse Admin account...');
         const salt = generateSalt();
@@ -95,19 +122,9 @@ const ensureDefaultAdmin = async () => {
           companyName: 'StackPulse Enterprise',
         });
         console.log('[Auth]: Default StackPulse Admin user created in DB -> admin@stackpulse.com');
-      } else {
-        let changed = false;
-        if (!admin.securityCodeHash) {
-          admin.securityCodeHash = hashPassword('1234', admin.salt);
-          changed = true;
-        }
-        if (admin.email === 'admin@manufacturer.com') {
-          admin.email = 'admin@stackpulse.com';
-          changed = true;
-        }
-        if (changed) {
-          await admin.save();
-        }
+      } else if (!admin.securityCodeHash) {
+        admin.securityCodeHash = hashPassword('1234', admin.salt);
+        await admin.save();
       }
 
       // Assign any legacy unassociated records to the default admin so new users get a clean 0 start
@@ -143,35 +160,35 @@ exports.login = async (req, res, next) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide both email and password',
+        message: 'Please provide both email/username and password',
       });
     }
 
     const cleanEmail = normalizeEmail(email);
+
+    // Explicitly reject any legacy manufacturer domain
+    if (cleanEmail === 'admin@manufacturer.com' || cleanEmail.endsWith('@manufacturer.com')) {
+      return res.status(401).json({
+        success: false,
+        message: 'The manufacturer account has been removed. Please log in with admin@stackpulse.com (or username "admin").',
+      });
+    }
+
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
 
     let user = null;
-    const isDefaultAdmin = cleanEmail === 'admin@stackpulse.com' || cleanEmail === 'admin@manufacturer.com';
 
     if (isDbConnected) {
-      user = await User.findOne(
-        isDefaultAdmin
-          ? { $or: [{ email: 'admin@stackpulse.com' }, { email: 'admin@manufacturer.com' }] }
-          : { email: cleanEmail }
-      );
+      user = await User.findOne({ email: cleanEmail });
     }
 
     // Fallback to in-memory store if DB not connected or user not in DB
     if (!user && Array.isArray(store.users)) {
-      user = store.users.find(
-        (u) =>
-          u.email.toLowerCase() === cleanEmail ||
-          (isDefaultAdmin && (u.email.toLowerCase() === 'admin@stackpulse.com' || u.email.toLowerCase() === 'admin@manufacturer.com'))
-      );
+      user = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
     }
 
     // Direct check for default admin credentials if DB user was not loaded
-    if (!user && isDefaultAdmin && password === 'admin123') {
+    if (!user && cleanEmail === 'admin@stackpulse.com' && password === 'admin123') {
       user = Array.isArray(store.users) ? store.users[0] : null;
     }
 
@@ -312,23 +329,23 @@ exports.resetPassword = async (req, res, next) => {
 
     const cleanEmail = normalizeEmail(email);
     const cleanSecretCode = String(secretCode).trim().toLowerCase();
+
+    // Reject legacy manufacturer domain
+    if (cleanEmail === 'admin@manufacturer.com' || cleanEmail.endsWith('@manufacturer.com')) {
+      return res.status(400).json({
+        success: false,
+        message: 'The manufacturer domain has been removed. Please reset password using admin@stackpulse.com (or username "admin").',
+      });
+    }
+
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
 
     let user = null;
-    const isDefaultAdmin = cleanEmail === 'admin@stackpulse.com' || cleanEmail === 'admin@manufacturer.com';
 
     if (isDbConnected) {
-      user = await User.findOne(
-        isDefaultAdmin
-          ? { $or: [{ email: 'admin@stackpulse.com' }, { email: 'admin@manufacturer.com' }] }
-          : { email: cleanEmail }
-      );
+      user = await User.findOne({ email: cleanEmail });
     } else if (Array.isArray(store.users)) {
-      user = store.users.find(
-        (u) =>
-          u.email.toLowerCase() === cleanEmail ||
-          (isDefaultAdmin && (u.email.toLowerCase() === 'admin@stackpulse.com' || u.email.toLowerCase() === 'admin@manufacturer.com'))
-      );
+      user = store.users.find((u) => u.email.toLowerCase() === cleanEmail);
     }
 
     if (!user) {

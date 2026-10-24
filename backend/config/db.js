@@ -16,8 +16,8 @@ const connectDB = async () => {
   } catch (error) {
     console.warn(`[MongoDB Warning]: Could not connect to configured MongoDB (${error.message}).`);
     
-    // In production, do not silently fallback to ephemeral in-memory database
-    if (process.env.NODE_ENV === 'production' && process.env.MONGO_URI) {
+    // On hosted cloud production (like Render), fail explicitly if DB unreachable
+    if (process.env.NODE_ENV === 'production' && (process.env.RENDER || process.env.VERCEL) && process.env.MONGO_URI) {
       console.error('[MongoDB Error]: Production database connection failed. Please verify Atlas network access / IP whitelist and credentials.');
       throw error;
     }

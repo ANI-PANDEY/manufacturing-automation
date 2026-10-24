@@ -29,6 +29,12 @@ export const AuthProvider = ({ children }) => {
           console.warn('[AuthContext]: Remote validation failed, using cached session:', err.message);
           const cachedUser = JSON.parse(localStorage.getItem('erp_user_backup') || 'null');
           if (cachedUser) {
+            if (cachedUser.email === 'admin@manufacturer.com') {
+              cachedUser.email = 'admin@stackpulse.com';
+              cachedUser.name = 'StackPulse Administrator';
+              cachedUser.companyName = 'StackPulse Enterprise';
+              localStorage.setItem('erp_user_backup', JSON.stringify(cachedUser));
+            }
             setUser(cachedUser);
             setIsAuthenticated(true);
           }
@@ -52,6 +58,16 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     const cleanEmail = normalizeEmail(email);
+
+    // Reject legacy manufacturer domain immediately
+    if (cleanEmail === 'admin@manufacturer.com' || cleanEmail.endsWith('@manufacturer.com')) {
+      setLoading(false);
+      return {
+        success: false,
+        message: 'The manufacturer account has been removed. Please log in with admin@stackpulse.com (or username "admin").',
+      };
+    }
+
     try {
       const res = await authService.login({ email: cleanEmail, password });
       if (res.data?.success) {
@@ -69,8 +85,8 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.warn('[Login]: Network/Server error, attempting offline admin check:', err.message);
-      // Fail-safe client offline check for admin account
-      if ((cleanEmail === 'admin@stackpulse.com' || cleanEmail === 'admin@manufacturer.com') && password === 'admin123') {
+      // Fail-safe client offline check ONLY for stackpulse admin and ONLY on network connection failure (no HTTP response)
+      if (!err.response && cleanEmail === 'admin@stackpulse.com' && password === 'admin123') {
         const fallbackUser = {
           id: 'usr_admin_default',
           name: 'StackPulse Administrator',
@@ -162,6 +178,15 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async ({ email, secretCode, newPassword }) => {
     setLoading(true);
     const cleanEmail = normalizeEmail(email);
+
+    if (cleanEmail === 'admin@manufacturer.com' || cleanEmail.endsWith('@manufacturer.com')) {
+      setLoading(false);
+      return {
+        success: false,
+        message: 'The manufacturer account has been removed. Please reset password using admin@stackpulse.com (or username "admin").',
+      };
+    }
+
     try {
       const res = await authService.resetPassword({ email: cleanEmail, secretCode, newPassword });
       setLoading(false);

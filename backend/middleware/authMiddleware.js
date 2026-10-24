@@ -47,7 +47,6 @@ const protect = async (req, res, next) => {
 
     const isDemoAdmin =
       decoded.email === 'admin@stackpulse.com' ||
-      decoded.email === 'admin@manufacturer.com' ||
       decoded.id === 'usr_admin_default';
     req.isDemoAdmin = isDemoAdmin;
 
