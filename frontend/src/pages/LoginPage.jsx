@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
 import {
   Factory,
-  Lock,
   Mail,
   UserCheck,
   KeyRound,
   Eye,
   EyeOff,
   ShieldCheck,
-  ShieldAlert,
   AlertCircle,
   ArrowRight,
   ArrowLeft,
   Sparkles,
   Building2,
   CheckCircle2,
-  RotateCcw,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -54,7 +52,7 @@ const LoginPage = () => {
 
     const cleanEmail = email.trim();
     if (!cleanEmail || !password) {
-      setErrorMsg('Please enter both email and password.');
+      setErrorMsg('Please enter both username/email and password.');
       return;
     }
 
@@ -63,7 +61,7 @@ const LoginPage = () => {
       const result = await login(cleanEmail, password);
       setLoading(false);
       if (!result.success) {
-        setErrorMsg(result.message || 'Invalid email or password. Please try again.');
+        setErrorMsg(result.message || 'Invalid credentials. Please try again.');
       }
     } catch (err) {
       setLoading(false);
@@ -78,7 +76,7 @@ const LoginPage = () => {
 
     const cleanEmail = email.trim();
     if (!name.trim() || !cleanEmail || !password) {
-      setErrorMsg('Name, email, and password are required.');
+      setErrorMsg('Name, username/email, and password are required.');
       return;
     }
 
@@ -94,15 +92,15 @@ const LoginPage = () => {
         email: cleanEmail,
         password,
         role,
-        companyName: companyName.trim() || 'Manufacturing ERP Enterprise',
+        companyName: companyName.trim() || 'StackPulse Enterprise',
         secretCode: secretCode.trim() || '1234',
       });
       setLoading(false);
 
       if (!result.success) {
-        setErrorMsg(result.message || 'Registration failed. Email might already exist.');
+        setErrorMsg(result.message || 'Registration failed. Username or email might already exist.');
       } else {
-        setSuccessMsg('Account created successfully! Logging you in...');
+        setSuccessMsg('Account created successfully! Signing you in...');
       }
     } catch (err) {
       setLoading(false);
@@ -119,7 +117,7 @@ const LoginPage = () => {
     const cleanSecret = secretCode.trim();
 
     if (!cleanEmail || !cleanSecret || !password) {
-      setErrorMsg('Please fill in your registered email, secret recovery code, and new password.');
+      setErrorMsg('Please fill in your username/email, secret recovery PIN, and new password.');
       return;
     }
 
@@ -143,7 +141,7 @@ const LoginPage = () => {
       setLoading(false);
 
       if (!result.success) {
-        setErrorMsg(result.message || 'Password reset failed. Invalid secret recovery code.');
+        setErrorMsg(result.message || 'Password reset failed. Invalid secret recovery PIN.');
       } else {
         setSuccessMsg(result.message || 'Password reset successfully! Please sign in with your new password.');
         setPassword('');
@@ -159,83 +157,26 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
       {/* Background Animated Glow Gradients */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-sky-500/20 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
-      <div
-        className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none animate-pulse"
-        style={{ animationDelay: '1s' }}
-      ></div>
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-sky-500/15 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10 p-6 sm:p-8">
         {/* Header Branding */}
-        <div className="text-center mb-5">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-cyan-400 shadow-lg shadow-sky-500/30 mb-3 transform hover:scale-105 transition">
-            <Factory className="w-8 h-8 text-white" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-cyan-400 shadow-lg shadow-sky-500/25 mb-3">
+            <Factory className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+          <h1 className="text-xl font-black tracking-tight text-white flex items-center justify-center gap-2">
             <span>StackPulse</span>
-            <span className="bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">
-              ENTERPRISE ERP
+            <span className="bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">
+              ERP
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            {authMode === 'login' && 'Sign in with your @stackpulse.com ID or Email'}
-            {authMode === 'register' && 'Create your StackPulse account (fresh 0 start)'}
-            {authMode === 'forgot' && 'Reset forgotten password with your secret recovery code'}
+            {authMode === 'login' && 'Sign in to access your software'}
+            {authMode === 'register' && 'Create your StackPulse account'}
+            {authMode === 'forgot' && 'Reset your password using your recovery PIN'}
           </p>
-        </div>
-
-        {/* 3-Mode Segmented Control Tabs */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-2xl mb-5">
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMode('login');
-              setErrorMsg('');
-              setSuccessMsg('');
-            }}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition ${
-              authMode === 'login'
-                ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Sign In</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMode('register');
-              setErrorMsg('');
-              setSuccessMsg('');
-            }}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition ${
-              authMode === 'register'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>New User</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMode('forgot');
-              setErrorMsg('');
-              setSuccessMsg('');
-            }}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold transition ${
-              authMode === 'forgot'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Pass</span>
-          </button>
         </div>
 
         {/* 1-Click Demo Credentials Pill (Login Mode Only) */}
@@ -276,59 +217,26 @@ const LoginPage = () => {
         {authMode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-300">Username / StackPulse Email</label>
-                <span className="text-[10px] text-sky-400 font-mono bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
-                  @stackpulse.com
-                </span>
-              </div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Username or Email
+              </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. harsh or harsh@stackpulse.com"
+                  placeholder="name@example.com or username"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                   required
                 />
               </div>
-              <div className="mt-1.5 p-2 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-300">
-                <p className="font-semibold flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>
-                    Aapka Login ID:{' '}
-                    <strong className="text-white font-mono bg-sky-950 px-1.5 py-0.5 rounded border border-sky-500/30">
-                      {email
-                        ? (email.includes('@') ? email.trim().toLowerCase() : `${email.trim().toLowerCase()}@stackpulse.com`)
-                        : 'harsh@stackpulse.com'}
-                    </strong>
-                  </span>
-                </p>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  💡 Tip: Sirf apna naam (jaise <strong>harsh</strong>) likhein — <strong>@stackpulse.com</strong> automatic jud jayega!
-                </p>
-              </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-300">Password</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('forgot');
-                    setErrorMsg('');
-                    setSuccessMsg('');
-                    setPassword('');
-                    setConfirmPassword('');
-                  }}
-                  className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition underline underline-offset-2 flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Forgot Password? (पासवर्ड भूल गए?)</span>
-                </button>
-              </div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Password
+              </label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
@@ -358,26 +266,35 @@ const LoginPage = () => {
                 <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>Sign In To Software</span>
+                  <span>Sign In to Software</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
 
-            <div className="pt-2 text-center border-t border-slate-800/80">
+            {/* Clean Footer Links */}
+            <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs">
               <button
                 type="button"
                 onClick={() => {
                   setAuthMode('forgot');
                   setErrorMsg('');
                   setSuccessMsg('');
-                  setPassword('');
-                  setConfirmPassword('');
                 }}
-                className="inline-flex items-center space-x-2 text-xs text-amber-300 hover:text-amber-200 font-extrabold bg-amber-500/15 hover:bg-amber-500/25 px-4 py-2.5 rounded-xl border border-amber-500/40 transition cursor-pointer w-full justify-center shadow-sm shadow-amber-500/10 active:scale-98"
+                className="text-slate-400 hover:text-sky-400 font-medium transition cursor-pointer"
               >
-                <KeyRound className="w-4 h-4 text-amber-400" />
-                <span>🔑 Reset Password with Secret PIN (सिक्रेट पिन से पासवर्ड बदलें)</span>
+                Forgot password?
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('register');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                className="text-sky-400 hover:text-sky-300 font-semibold transition cursor-pointer"
+              >
+                Don't have an account? Sign up
               </button>
             </div>
           </form>
@@ -385,16 +302,16 @@ const LoginPage = () => {
 
         {/* ----------------- MODE 2: REGISTER ----------------- */}
         {authMode === 'register' && (
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-3.5">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Full Name</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
               <div className="relative">
                 <UserCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Rahul Sharma"
+                  placeholder="e.g. John Doe"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                   required
                 />
@@ -402,52 +319,31 @@ const LoginPage = () => {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-300">
-                  Username / Email (अपना यूजरनेम चुनें) *
-                </label>
-                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">
-                  @stackpulse.com
-                </span>
-              </div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Username or Email
+              </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. harsh or harsh@stackpulse.com"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                  placeholder="name@example.com or username"
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                   required
                 />
-              </div>
-              <div className="mt-1.5 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300">
-                <p className="font-semibold flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>
-                    Aapka Login ID hoga:{' '}
-                    <strong className="text-white font-mono bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                      {email
-                        ? (email.includes('@') ? email.trim().toLowerCase() : `${email.trim().toLowerCase()}@stackpulse.com`)
-                        : 'harsh@stackpulse.com'}
-                    </strong>
-                  </span>
-                </p>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  💡 Tip: Bas apna naam likhein (jaise <strong>harsh</strong>) — <strong>@stackpulse.com</strong> apne aap jud jayega!
-                </p>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Create Password (पासवर्ड बनाएं)</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Create Password</label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 4 characters (e.g. mypass123)"
+                  placeholder="Min. 4 characters"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                   required
                 />
@@ -461,15 +357,12 @@ const LoginPage = () => {
               </div>
             </div>
 
-            {/* Secret Recovery Code Field */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-300">
-                  Secret Recovery PIN (सिक्रेट 4-Digit पिन) *
+                <label className="block text-xs font-semibold text-slate-300">
+                  Secret Recovery PIN
                 </label>
-                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30 font-mono">
-                  PIN FOR PRIVACY
-                </span>
+                <span className="text-[10px] text-slate-400">Default: 1234</span>
               </div>
               <div className="relative">
                 <ShieldAlert className="w-4 h-4 text-amber-400 absolute left-3.5 top-3" />
@@ -477,32 +370,29 @@ const LoginPage = () => {
                   type="text"
                   value={secretCode}
                   onChange={(e) => setSecretCode(e.target.value)}
-                  placeholder="e.g. 1234 (Apna 4-digit secret PIN yahan daalein)"
-                  className="w-full bg-slate-800/80 border border-amber-500/50 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
-                  required
+                  placeholder="4-digit PIN (e.g. 1234)"
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                 />
               </div>
-              <p className="text-[11px] text-amber-300/90 mt-1.5 leading-snug">
-                🔒 <strong>Privacy Note:</strong> Yeh Secret PIN yaad rakhein! Baad me kisi bhi waqt aap is PIN se apna custom password bana ya reset kar sakte hain.
-              </p>
+              <p className="text-[10px] text-slate-400 mt-1">Used to reset your password if forgotten.</p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Company / Factory Name</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Company / Organization</label>
               <div className="relative">
                 <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. StackPulse Enterprise or your factory name"
+                  placeholder="Company or Factory Name"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Role</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
@@ -517,32 +407,30 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-emerald-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider cursor-pointer"
+              className="w-full bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-sky-500/25 transition transform active:scale-98 flex items-center justify-center space-x-2 text-xs uppercase tracking-wider cursor-pointer"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>Create Account & Log In</span>
+                  <span>Create Account & Sign In</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
 
-            <div className="pt-2 text-center border-t border-slate-800/80">
+            <div className="mt-4 pt-3 border-t border-slate-800/80 text-center text-xs">
               <button
                 type="button"
                 onClick={() => {
-                  setAuthMode('forgot');
+                  setAuthMode('login');
                   setErrorMsg('');
                   setSuccessMsg('');
-                  setPassword('');
-                  setConfirmPassword('');
                 }}
-                className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer border border-amber-500/30"
+                className="text-slate-400 hover:text-white transition inline-flex items-center gap-1.5"
               >
-                <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                <span>Reset / Change Password with Secret PIN (पासवर्ड बदलें)</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Already have an account? <strong className="text-sky-400 font-semibold">Sign in</strong></span>
               </button>
             </div>
           </form>
@@ -550,73 +438,60 @@ const LoginPage = () => {
 
         {/* ----------------- MODE 3: FORGOT PASSWORD ----------------- */}
         {authMode === 'forgot' && (
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
-              <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5 text-amber-400" />
-              <div>
-                <p className="font-bold text-amber-200">Reset Your Password</p>
-                <p className="text-[11px] text-amber-300/90 mt-0.5">
-                  Apna registered email aur Secret Code daalein. Agar code nahi badla tha toh default <strong>1234</strong> daalein.
-                </p>
-              </div>
+          <form onSubmit={handleResetPassword} className="space-y-3.5">
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2.5">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+              <p className="text-[11px] leading-relaxed">
+                Enter your username or email and your secret recovery PIN (default: <strong>1234</strong>) to set a new password.
+              </p>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-300">
-                  StackPulse Username or Email
-                </label>
-                <span className="text-[10px] text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                  @stackpulse.com
-                </span>
-              </div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Username or Email
+              </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. aniket or aniket@stackpulse.com"
+                  placeholder="name@example.com or username"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
               </div>
-              {email && !email.includes('@') && (
-                <p className="text-[10px] text-amber-400/90 mt-1 pl-1 font-mono">
-                  Resetting account for: <strong>{email.trim().toLowerCase()}@stackpulse.com</strong>
-                </p>
-              )}
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">
-                Secret Recovery Code / Security PIN
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Secret Recovery PIN
+                </label>
+                <span className="text-[10px] text-slate-400">Default: 1234</span>
+              </div>
               <div className="relative">
                 <ShieldAlert className="w-4 h-4 text-amber-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
                   value={secretCode}
                   onChange={(e) => setSecretCode(e.target.value)}
-                  placeholder="e.g. 1234 or your secret PIN"
-                  className="w-full bg-slate-800/80 border border-amber-500/40 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
+                  placeholder="e.g. 1234"
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Default Admin (admin@stackpulse.com) code: <strong>1234</strong>
-              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">New Password</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">New Password</label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter new password (min 4 characters)"
+                  placeholder="Min. 4 characters"
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
                   required
                 />
@@ -631,9 +506,9 @@ const LoginPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Confirm New Password</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm New Password</label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
@@ -661,88 +536,28 @@ const LoginPage = () => {
                 <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>Reset Password Now</span>
+                  <span>Reset Password</span>
                   <CheckCircle2 className="w-4 h-4" />
                 </>
               )}
             </button>
+
+            <div className="mt-4 pt-3 border-t border-slate-800/80 text-center text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('login');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                className="text-slate-400 hover:text-white transition inline-flex items-center gap-1.5"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Remember your password? <strong className="text-sky-400 font-semibold">Back to Sign In</strong></span>
+              </button>
+            </div>
           </form>
         )}
-
-        {/* Footer Navigation Between Modes */}
-        <div className="mt-5 text-center border-t border-slate-800 pt-4">
-          {authMode === 'login' && (
-            <div className="flex items-center justify-between text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('forgot');
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                }}
-                className="font-bold text-amber-400 hover:text-amber-300 transition"
-              >
-                Forgot Password?
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('register');
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                }}
-                className="font-bold text-sky-400 hover:text-sky-300 transition"
-              >
-                Create Account →
-              </button>
-            </div>
-          )}
-
-          {authMode === 'register' && (
-            <div className="flex items-center justify-between text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('login');
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                }}
-                className="font-bold text-sky-400 hover:text-sky-300 transition inline-flex items-center gap-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Sign In</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('forgot');
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                }}
-                className="font-bold text-amber-400 hover:text-amber-300 transition"
-              >
-                Forgot Password?
-              </button>
-            </div>
-          )}
-
-          {authMode === 'forgot' && (
-            <div className="text-center text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('login');
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                }}
-                className="font-bold text-sky-400 hover:text-sky-300 transition inline-flex items-center gap-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Sign In</span>
-              </button>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
