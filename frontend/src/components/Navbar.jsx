@@ -19,6 +19,7 @@ import {
   Users,
   Boxes,
   Plus,
+  KeyRound,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +33,7 @@ const Navbar = ({
   onOpenInwardModal,
   onOpenEditEnterpriseModal,
   onOpenIndustryModal,
+  onOpenResetPasswordModal,
   activeTab,
   setActiveTab,
 }) => {
@@ -271,6 +273,23 @@ const Navbar = ({
                         <Sliders className="w-4 h-4 text-slate-400" />
                         <span>Switch Industry Preset</span>
                       </button>
+
+                      {/* Reset / Change Password */}
+                      <button
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          onOpenResetPasswordModal && onOpenResetPasswordModal();
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-amber-500/10 transition text-left cursor-pointer text-amber-600 dark:text-amber-400"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <KeyRound className="w-4 h-4 text-amber-500" />
+                          <span className="font-semibold text-xs">Reset / Change Password</span>
+                        </div>
+                        <span className="text-[9px] bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold px-1.5 py-0.5 rounded font-mono">
+                          PIN
+                        </span>
+                      </button>
                     </div>
 
                     {/* Logout Button */}
@@ -430,6 +449,22 @@ const Navbar = ({
                   </span>
                   <span className="text-[9px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded font-mono">
                     {activePreset.badge}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsMobileDrawerOpen(false);
+                    onOpenResetPasswordModal && onOpenResetPasswordModal();
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                >
+                  <span className="flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-amber-500" />
+                    <span>Change Password (पासवर्ड बदलें)</span>
+                  </span>
+                  <span className="text-[9px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-mono">
+                    PIN
                   </span>
                 </button>
               </div>

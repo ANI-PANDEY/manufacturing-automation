@@ -234,7 +234,7 @@ const LoginPage = () => {
             }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Forgot?</span>
+            <span>Reset Pass</span>
           </button>
         </div>
 
@@ -352,6 +352,23 @@ const LoginPage = () => {
                 </>
               )}
             </button>
+
+            <div className="pt-2 text-center border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('forgot');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                  setPassword('');
+                  setConfirmPassword('');
+                }}
+                className="inline-flex items-center space-x-1.5 text-xs text-amber-400 hover:text-amber-300 font-bold bg-amber-500/10 hover:bg-amber-500/20 px-3.5 py-2 rounded-xl border border-amber-500/30 transition cursor-pointer w-full justify-center"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Forgot Password? Click here to Reset (पासवर्ड रीसेट करें)</span>
+              </button>
+            </div>
           </form>
         )}
 

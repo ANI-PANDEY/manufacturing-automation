@@ -14,6 +14,7 @@ import CreateOrderModal from './components/CreateOrderModal';
 import InwardMaterialModal from './components/InwardMaterialModal';
 import EditEnterpriseModal from './components/EditEnterpriseModal';
 import IndustrySelectorModal from './components/IndustrySelectorModal';
+import ResetPasswordModal from './components/ResetPasswordModal';
 
 import { partyService } from './services/api';
 import { useAuth } from './context/AuthContext';
@@ -49,6 +50,7 @@ const App = () => {
   const [isInwardModalOpen, setIsInwardModalOpen] = useState(false);
   const [isEditEnterpriseModalOpen, setIsEditEnterpriseModalOpen] = useState(false);
   const [isIndustryModalOpen, setIsIndustryModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
 
   const [preselectedPartyId, setPreselectedPartyId] = useState('');
 
@@ -63,6 +65,7 @@ const App = () => {
           setIsInwardModalOpen(false);
           setIsEditEnterpriseModalOpen(false);
           setIsIndustryModalOpen(false);
+          setIsResetPasswordModalOpen(false);
         }
         return;
       }
@@ -100,6 +103,7 @@ const App = () => {
         setIsInwardModalOpen(false);
         setIsEditEnterpriseModalOpen(false);
         setIsIndustryModalOpen(false);
+        setIsResetPasswordModalOpen(false);
       }
     };
 
@@ -164,6 +168,7 @@ const App = () => {
         onOpenInwardModal={() => setIsInwardModalOpen(true)}
         onOpenEditEnterpriseModal={() => setIsEditEnterpriseModalOpen(true)}
         onOpenIndustryModal={() => setIsIndustryModalOpen(true)}
+        onOpenResetPasswordModal={() => setIsResetPasswordModalOpen(true)}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
@@ -259,6 +264,11 @@ const App = () => {
       <IndustrySelectorModal
         isOpen={isIndustryModalOpen}
         onClose={() => setIsIndustryModalOpen(false)}
+      />
+
+      <ResetPasswordModal
+        isOpen={isResetPasswordModalOpen}
+        onClose={() => setIsResetPasswordModalOpen(false)}
       />
     </div>
   );
