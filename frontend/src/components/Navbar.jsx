@@ -58,7 +58,11 @@ const Navbar = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   // Prevent background scrolling when mobile drawer is open
@@ -80,7 +84,7 @@ const Navbar = ({
 
   return (
     <>
-      <header className="w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-30 shadow-sm font-sans transition-colors duration-200 overflow-x-hidden">
+      <header className="w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-40 shadow-sm font-sans transition-colors duration-200">
         <div className="w-full px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
             {/* LEFT: Mobile Menu Button & Brand Logo */}
@@ -202,10 +206,18 @@ const Navbar = ({
               </button>
 
               {/* User Profile & System Controls Dropdown */}
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative z-50" ref={dropdownRef}>
                 <button
-                  onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                  type="button"
+                  id="admin-profile-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsProfileMenuOpen((prev) => !prev);
+                  }}
                   className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 sm:px-2.5 sm:py-1.5 transition text-left cursor-pointer"
+                  aria-expanded={isProfileMenuOpen}
+                  aria-haspopup="true"
                 >
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
                     {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
@@ -218,12 +230,12 @@ const Navbar = ({
                       {user?.role || 'ADMIN'}
                     </p>
                   </div>
-                  <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+                  <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Profile & Controls Dropdown Menu */}
                 {isProfileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-50 animate-fadeIn space-y-2.5">
+                  <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-50 animate-fadeIn space-y-2.5">
                     {/* Account Info Header */}
                     <div className="p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
                       <p className="text-xs font-bold text-slate-900 dark:text-white">{user?.name}</p>
