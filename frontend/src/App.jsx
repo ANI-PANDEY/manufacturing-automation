@@ -15,6 +15,7 @@ import InwardMaterialModal from './components/InwardMaterialModal';
 import EditEnterpriseModal from './components/EditEnterpriseModal';
 import IndustrySelectorModal from './components/IndustrySelectorModal';
 import ResetPasswordModal from './components/ResetPasswordModal';
+import DataMigrationModal from './components/DataMigrationModal';
 
 import { partyService } from './services/api';
 import { useAuth } from './context/AuthContext';
@@ -51,8 +52,23 @@ const App = () => {
   const [isEditEnterpriseModalOpen, setIsEditEnterpriseModalOpen] = useState(false);
   const [isIndustryModalOpen, setIsIndustryModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
+  const [migrationModule, setMigrationModule] = useState('parties');
 
   const [preselectedPartyId, setPreselectedPartyId] = useState('');
+
+  const handleOpenMigrationModal = (mod = 'parties') => {
+    setMigrationModule(mod);
+    setIsMigrationModalOpen(true);
+  };
+
+  // If user navigated to 'migration' tab via sidebar
+  useEffect(() => {
+    if (activeTab === 'migration') {
+      handleOpenMigrationModal('parties');
+      setActiveTab('dashboard');
+    }
+  }, [activeTab]);
 
   // Tally-style Global Keyboard Shortcuts for Lightning Speed ERP Actions
   useEffect(() => {
@@ -66,6 +82,7 @@ const App = () => {
           setIsEditEnterpriseModalOpen(false);
           setIsIndustryModalOpen(false);
           setIsResetPasswordModalOpen(false);
+          setIsMigrationModalOpen(false);
         }
         return;
       }
@@ -96,6 +113,9 @@ const App = () => {
         } else if (key === '5') {
           e.preventDefault();
           setActiveTab('inventory');
+        } else if (key === '6' || key === 'm') {
+          e.preventDefault();
+          handleOpenMigrationModal('parties');
         }
       } else if (e.key === 'Escape') {
         setIsPaymentModalOpen(false);
@@ -104,6 +124,7 @@ const App = () => {
         setIsEditEnterpriseModalOpen(false);
         setIsIndustryModalOpen(false);
         setIsResetPasswordModalOpen(false);
+        setIsMigrationModalOpen(false);
       }
     };
 
@@ -169,6 +190,7 @@ const App = () => {
         onOpenEditEnterpriseModal={() => setIsEditEnterpriseModalOpen(true)}
         onOpenIndustryModal={() => setIsIndustryModalOpen(true)}
         onOpenResetPasswordModal={() => setIsResetPasswordModalOpen(true)}
+        onOpenMigrationModal={handleOpenMigrationModal}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
@@ -186,6 +208,7 @@ const App = () => {
                 onOpenPaymentModal={handleOpenPaymentModal}
                 onOpenOrderModal={() => setIsOrderModalOpen(true)}
                 onOpenInwardModal={() => setIsInwardModalOpen(true)}
+                onOpenMigrationModal={handleOpenMigrationModal}
                 refreshTrigger={refreshTrigger}
               />
             )}
@@ -269,6 +292,14 @@ const App = () => {
       <ResetPasswordModal
         isOpen={isResetPasswordModalOpen}
         onClose={() => setIsResetPasswordModalOpen(false)}
+      />
+
+      <DataMigrationModal
+        isOpen={isMigrationModalOpen}
+        onClose={() => setIsMigrationModalOpen(false)}
+        initialModule={migrationModule}
+        existingParties={parties}
+        onSuccess={handleTriggerRefresh}
       />
     </div>
   );

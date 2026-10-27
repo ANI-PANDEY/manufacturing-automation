@@ -19,9 +19,11 @@ import {
   Briefcase,
   ArrowUpRight,
   Sparkles,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { partyService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
+import DataMigrationModal from '../components/DataMigrationModal';
 
 const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal, refreshParties }) => {
   // Add Party Modal State
@@ -33,8 +35,13 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
   const [address, setAddress] = useState('');
   const [gstin, setGstin] = useState('');
   const [creditLimit, setCreditLimit] = useState(500000);
+  const [openingBalance, setOpeningBalance] = useState('');
+  const [openingBalanceType, setOpeningBalanceType] = useState('RECEIVABLE');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Migration modal state
+  const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,6 +80,8 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
         address,
         gstin: gstin.toUpperCase(),
         creditLimit: Number(creditLimit),
+        openingBalance: Number(openingBalance) || 0,
+        openingBalanceType,
       });
 
       if (res.data?.success) {
@@ -81,6 +90,8 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
         setEmail('');
         setAddress('');
         setGstin('');
+        setOpeningBalance('');
+        setOpeningBalanceType('RECEIVABLE');
         setShowModal(false);
         refreshParties && refreshParties();
       }
@@ -148,13 +159,23 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
           </p>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="z-10 inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-extrabold shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 active:scale-95 shrink-0 border border-indigo-400/30"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Add Customer / Party</span>
-        </button>
+        <div className="z-10 flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => setIsMigrationModalOpen(true)}
+            className="inline-flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-4 py-2.5 rounded-2xl text-xs font-extrabold border border-white/20 transition transform hover:-translate-y-0.5 active:scale-95 shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Import Old Data / Excel (पुरानी डेटा एंट्री)</span>
+          </button>
+
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-extrabold shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 active:scale-95 border border-indigo-400/30"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Add Customer / Party</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Overview Cards */}
@@ -534,6 +555,43 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
                 />
               </div>
 
+              {/* Previous Manual Balance / Opening Balance Section */}
+              <div className="p-3.5 bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-indigo-900 dark:text-indigo-200">
+                    Previous Manual Balance / पुराना बकाया (Opening Balance)
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Bahi Khata / Excel</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Opening Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={openingBalance}
+                      onChange={(e) => setOpeningBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-3 py-2 font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Balance Type (हिसाब)
+                    </label>
+                    <select
+                      value={openingBalanceType}
+                      onChange={(e) => setOpeningBalanceType(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-3 py-2 font-bold"
+                    >
+                      <option value="RECEIVABLE">Receivable (लेना है - Debit)</option>
+                      <option value="PAYABLE">Payable (देना है - Credit)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-2 pt-3">
                 <button
                   type="button"
@@ -554,6 +612,15 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
           </div>
         </div>
       )}
+
+      {/* Comprehensive Old Data Migration Modal */}
+      <DataMigrationModal
+        isOpen={isMigrationModalOpen}
+        onClose={() => setIsMigrationModalOpen(false)}
+        initialModule="parties"
+        existingParties={displayParties}
+        onSuccess={refreshParties}
+      />
     </div>
   );
 };

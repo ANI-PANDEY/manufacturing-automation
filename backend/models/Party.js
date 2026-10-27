@@ -44,6 +44,20 @@ const partySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Historical / Manual Opening Balance when migrating from old register/Excel
+    openingBalance: {
+      type: Number,
+      default: 0,
+    },
+    openingBalanceType: {
+      type: String,
+      enum: ['RECEIVABLE', 'PAYABLE'],
+      default: 'RECEIVABLE',
+    },
+    openingBalanceDate: {
+      type: Date,
+      default: Date.now,
+    },
     status: {
       type: String,
       enum: ['ACTIVE', 'INACTIVE'],

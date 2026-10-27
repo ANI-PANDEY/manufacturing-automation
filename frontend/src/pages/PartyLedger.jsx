@@ -317,6 +317,7 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                     </tr>
                   ) : (
                     filteredEvents.map((row, idx) => {
+                      const isOpening = row.type === 'OPENING_BALANCE';
                       const isDispatch = row.type === 'DISPATCH';
                       return (
                         <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
@@ -331,12 +332,14 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                           <td className="py-3.5 px-4">
                             <span
                               className={`inline-flex items-center space-x-1 font-bold text-[11px] px-2.5 py-0.5 rounded-full border ${
-                                isDispatch
+                                isOpening
+                                  ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-300 dark:border-sky-700/60'
+                                  : isDispatch
                                   ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700/60'
                                   : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60'
                               }`}
                             >
-                              <span>{isDispatch ? 'DISPATCH' : 'PAYMENT'}</span>
+                              <span>{isOpening ? 'OPENING BALANCE' : isDispatch ? 'DISPATCH' : 'PAYMENT'}</span>
                             </span>
                           </td>
 
@@ -357,7 +360,12 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                           </td>
 
                           <td className="py-3.5 px-4">
-                            {isDispatch ? (
+                            {isOpening ? (
+                              <span className="text-[10px] font-black bg-sky-500/15 text-sky-700 dark:text-sky-300 px-2.5 py-1 rounded-full border border-sky-500/30 flex items-center gap-1 w-max">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>OPENING RECORD</span>
+                              </span>
+                            ) : isDispatch ? (
                               <span
                                 className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border ${
                                   row.paymentStatus === 'PAID'

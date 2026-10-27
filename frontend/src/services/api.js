@@ -45,6 +45,7 @@ export const partyService = {
   getAll: (params) => api.get('/parties', { params }),
   getById: (id) => api.get(`/parties/${id}`),
   create: (data) => api.post('/parties', data),
+  bulkImport: (data) => api.post('/parties/bulk-import', data),
   delete: (id) => api.delete(`/parties/${id}`),
   getLedger: (id, params) => api.get(`/parties/${id}/ledger`, { params }),
 };
@@ -53,6 +54,7 @@ export const orderService = {
   getAll: (params) => api.get('/orders', { params }),
   getById: (id) => api.get(`/orders/${id}`),
   create: (data) => api.post('/orders', data),
+  bulkImport: (data) => api.post('/orders/bulk-import', data),
   delete: (id) => api.delete(`/orders/${id}`),
 };
 
@@ -64,6 +66,7 @@ export const paymentService = {
 export const inventoryService = {
   getRawMaterials: () => api.get('/inventory/raw-materials'),
   inwardRawMaterial: (data) => api.post('/inventory/raw-materials/inward', data),
+  bulkImportRawMaterials: (data) => api.post('/inventory/raw-materials/bulk-import', data),
   restockRawMaterial: (data) => api.post('/inventory/raw-materials/restock', data),
   deleteRawMaterial: (id) => api.delete(`/inventory/raw-materials/${id}`),
   getProducts: () => api.get('/inventory/products'),
@@ -71,6 +74,14 @@ export const inventoryService = {
   bulkUploadProducts: (data) => api.post('/inventory/products/bulk-upload', data),
   restockProduct: (data) => api.post('/inventory/products/restock', data),
   deleteProduct: (id) => api.delete(`/inventory/products/${id}`),
+};
+
+export const migrationService = {
+  getStats: () => api.get('/migration/status'),
+  importParties: (data) => api.post('/migration/parties', data),
+  importProducts: (data) => api.post('/migration/products', data),
+  importRawMaterials: (data) => api.post('/migration/raw-materials', data),
+  importOrders: (data) => api.post('/migration/orders', data),
 };
 
 export default api;

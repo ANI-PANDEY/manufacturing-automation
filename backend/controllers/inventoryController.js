@@ -531,6 +531,194 @@ const bulkUploadProducts = async (req, res) => {
   }
 };
 
+/**
+ * @desc Bulk import raw materials stock from Excel / Manual sheet
+ * @route POST /api/inventory/raw-materials/bulk-import
+ */
+const bulkImportRawMaterials = async (req, res) => {
+  try {
+    const { rawMaterials = [] } = req.body;
+    const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
+    const userId = mongoose.Types.ObjectId.isValid(req.userId)
+      ? new mongoose.Types.ObjectId(req.userId)
+      : req.userId;
+
+    if (!Array.isArray(rawMaterials) || rawMaterials.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No raw material records provided for import. Please supply an array of raw materials.',
+      });
+    }
+
+    let createdCount = 0;
+    let failedCount = 0;
+    const errors = [];
+    const processedMaterials = [];
+
+    for (let i = 0; i < rawMaterials.length; i++) {
+      const row = rawMaterials[i];
+      const rawName = row.materialName || row.name || row.item || row.title;
+      const rawQty = row.quantityInStock !== undefined ? row.quantityInStock : (row.quantity || row.qty || row.stock);
+      const rawPrice = row.unitPrice !== undefined ? row.unitPrice : (row.price || row.cost || row.rate);
+
+      if (!rawName || rawQty === undefined || isNaN(Number(rawQty))) {
+        failedCount++;
+        errors.push({
+          row: i + 1,
+          item: row,
+          reason: 'Raw material name and valid quantity in stock are required',
+        });
+        continue;
+      }
+
+      const materialName = String(rawName).trim();
+      const quantityInStock = round2(Number(rawQty));
+      const unitPrice = round2(Number(rawPrice) || 0);
+      const category = row.category ? String(row.category).trim() : 'Steel & Metals';
+      const unit = row.unit ? String(row.unit).trim() : 'Kg';
+      const batchNumber = row.batchNumber && String(row.batchNumber).trim()
+        ? String(row.batchNumber).trim().toUpperCase()
+        : `BATCH-OLD-${Date.now().toString().slice(-4)}-${Math.floor(100 + Math.random() * 900)}`;
+      const receivedDate = row.receivedDate ? new Date(row.receivedDate) : new Date();
+      const notes = row.notes ? String(row.notes).trim() : 'Imported from historical register / Excel';
+
+      // Vendor handling
+      let vendor = null;
+      const rawVendor = row.vendorName || row.vendor || row.supplier || row.vendorId;
+      if (rawVendor) {
+        const vendorStr = String(rawVendor).trim();
+        if (isDbConnected) {
+          if (mongoose.Types.ObjectId.isValid(vendorStr)) {
+            vendor = await Party.findOne({ _id: vendorStr, ...userFilter });
+          }
+          if (!vendor) {
+            vendor = await Party.findOne({
+              ...userFilter,
+              name: { $regex: new RegExp(`^${vendorStr.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            });
+          }
+          if (!vendor) {
+            vendor = new Party({
+              user: userId,
+              name: vendorStr,
+              type: 'VENDOR',
+              currentBalance: 0,
+              status: 'ACTIVE',
+            });
+            await vendor.save();
+          }
+        } else {
+          vendor = store.parties.find(
+            (p) => (req.isDemoAdmin || p.user === req.userId) &&
+                   (p._id === vendorStr || p.name?.toLowerCase() === vendorStr.toLowerCase())
+          );
+          if (!vendor) {
+            vendor = {
+              _id: `p_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+              user: userId,
+              name: vendorStr,
+              type: 'VENDOR',
+              currentBalance: 0,
+              status: 'ACTIVE',
+              createdAt: new Date(),
+            };
+            store.parties.push(vendor);
+          }
+        }
+      }
+
+      // If no vendor specified, find any vendor or default vendor or create a generic vendor
+      if (!vendor) {
+        if (isDbConnected) {
+          vendor = await Party.findOne({ ...userFilter, type: { $in: ['VENDOR', 'BOTH'] } });
+          if (!vendor) {
+            vendor = new Party({
+              user: userId,
+              name: 'General Material Vendor',
+              type: 'VENDOR',
+              currentBalance: 0,
+              status: 'ACTIVE',
+            });
+            await vendor.save();
+          }
+        } else {
+          vendor = store.parties.find((p) => (req.isDemoAdmin || p.user === req.userId) && ['VENDOR', 'BOTH'].includes(p.type));
+          if (!vendor) {
+            vendor = {
+              _id: `p_${Date.now()}_gen`,
+              user: userId,
+              name: 'General Material Vendor',
+              type: 'VENDOR',
+              currentBalance: 0,
+              status: 'ACTIVE',
+              createdAt: new Date(),
+            };
+            store.parties.push(vendor);
+          }
+        }
+      }
+
+      const payload = {
+        user: userId,
+        materialName,
+        category,
+        vendor: vendor._id || vendor.id,
+        batchNumber,
+        unit,
+        quantityInStock,
+        unitPrice,
+        receivedDate,
+        notes,
+      };
+
+      let newRm = null;
+      if (isDbConnected) {
+        try {
+          const rmDoc = new RawMaterial(payload);
+          await rmDoc.save();
+          newRm = await RawMaterial.findById(rmDoc._id).populate('vendor', 'name phone email gstin');
+        } catch (dbErr) {
+          console.warn('[RawMaterial Save DB Fallback]:', dbErr.message);
+        }
+      }
+
+      if (!newRm) {
+        newRm = {
+          _id: `rm_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          ...payload,
+          vendor: {
+            _id: vendor._id || vendor.id,
+            name: vendor.name,
+            phone: vendor.phone,
+            gstin: vendor.gstin,
+          },
+          createdAt: receivedDate,
+        };
+      }
+
+      store.rawMaterials.unshift(newRm);
+      processedMaterials.push(newRm);
+      createdCount++;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully imported ${createdCount} raw material stocks (${failedCount} skipped).`,
+      stats: {
+        total: rawMaterials.length,
+        created: createdCount,
+        failed: failedCount,
+      },
+      errors,
+      rawMaterials: processedMaterials,
+    });
+  } catch (error) {
+    console.error('Error in bulkImportRawMaterials:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   inwardRawMaterial,
   getRawMaterials,
@@ -541,4 +729,5 @@ module.exports = {
   deleteProduct,
   deleteRawMaterial,
   bulkUploadProducts,
+  bulkImportRawMaterials,
 };

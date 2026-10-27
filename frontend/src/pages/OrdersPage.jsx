@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Eye, Download, FileText, Trash2, ShieldAlert } from 'lucide-react';
+import { ShoppingBag, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Eye, Download, FileText, Trash2, ShieldAlert, FileSpreadsheet } from 'lucide-react';
 import { orderService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
 import ViewInvoiceModal from '../components/ViewInvoiceModal';
+import DataMigrationModal from '../components/DataMigrationModal';
 
 const OrdersPage = ({ onOpenOrderModal, refreshTrigger }) => {
   const [orders, setOrders] = useState([]);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Migration modal state
+  const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
 
   // View Bill Modal state
   const [selectedOrderForBill, setSelectedOrderForBill] = useState(null);
@@ -100,13 +104,23 @@ const OrdersPage = ({ onOpenOrderModal, refreshTrigger }) => {
             Track outward sales dispatches, view complete bill details, or delete & restore stock for erroneous bills
           </p>
         </div>
-        <button
-          onClick={onOpenOrderModal}
-          className="inline-flex items-center space-x-2 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-500 hover:to-blue-500 text-white px-5 py-2.5 rounded-2xl text-xs font-extrabold shadow-lg shadow-sky-600/30 transition transform hover:-translate-y-0.5 active:scale-95 border border-sky-400/30 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Create New Dispatch Invoice</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => setIsMigrationModalOpen(true)}
+            className="inline-flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-4 py-2.5 rounded-2xl text-xs font-extrabold border border-white/20 transition transform hover:-translate-y-0.5 active:scale-95 shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Import Past Bills / Excel (पुराने बिल)</span>
+          </button>
+
+          <button
+            onClick={onOpenOrderModal}
+            className="inline-flex items-center space-x-2 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-500 hover:to-blue-500 text-white px-5 py-2.5 rounded-2xl text-xs font-extrabold shadow-lg shadow-sky-600/30 transition transform hover:-translate-y-0.5 active:scale-95 border border-sky-400/30"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Create New Dispatch Invoice</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Toolbar */}
@@ -288,6 +302,14 @@ const OrdersPage = ({ onOpenOrderModal, refreshTrigger }) => {
         onClose={() => setIsBillModalOpen(false)}
         order={selectedOrderForBill}
         onDeleteOrder={(ord) => setOrderToDelete(ord)}
+      />
+
+      {/* Historical Orders Migration Modal */}
+      <DataMigrationModal
+        isOpen={isMigrationModalOpen}
+        onClose={() => setIsMigrationModalOpen(false)}
+        initialModule="orders"
+        onSuccess={fetchOrders}
       />
     </div>
   );

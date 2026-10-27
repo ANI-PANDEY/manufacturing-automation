@@ -20,6 +20,8 @@ import {
   Boxes,
   Plus,
   KeyRound,
+  FileSpreadsheet,
+  Database,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +36,7 @@ const Navbar = ({
   onOpenEditEnterpriseModal,
   onOpenIndustryModal,
   onOpenResetPasswordModal,
+  onOpenMigrationModal,
   activeTab,
   setActiveTab,
 }) => {
@@ -153,6 +156,15 @@ const Navbar = ({
                 <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-700/80 text-emerald-100 border border-emerald-400/30 ml-1 font-bold">
                   Alt+P
                 </kbd>
+              </button>
+
+              <button
+                onClick={() => onOpenMigrationModal && onOpenMigrationModal('parties')}
+                title="Import Old Data & Excel Records (डेटा माइग्रेशन)"
+                className="inline-flex items-center space-x-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-xl text-xs font-bold border border-indigo-200/80 dark:border-indigo-800/50 transition shadow-sm"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Import Old Data</span>
               </button>
             </div>
 

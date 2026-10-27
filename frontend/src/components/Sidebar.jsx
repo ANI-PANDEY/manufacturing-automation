@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, BookOpen, Users, ShoppingBag, Boxes } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users, ShoppingBag, Boxes, Database } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
@@ -11,6 +11,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'parties', label: t('partyDirectory'), icon: Users, shortcut: 'Alt+3', color: 'text-sky-400' },
     { id: 'orders', label: t('dispatchInvoices'), icon: ShoppingBag, shortcut: 'Alt+4', color: 'text-blue-400' },
     { id: 'inventory', label: t('inventoryStock'), icon: Boxes, shortcut: 'Alt+5', color: 'text-purple-400' },
+    { id: 'migration', label: 'Old Data Migration', icon: Database, badge: 'Excel / Khata', shortcut: 'Alt+6', color: 'text-emerald-400' },
   ];
 
   return (

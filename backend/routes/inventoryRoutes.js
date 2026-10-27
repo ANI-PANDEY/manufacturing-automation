@@ -6,6 +6,7 @@ const {
   getProducts,
   createProduct,
   bulkUploadProducts,
+  bulkImportRawMaterials,
   restockProduct,
   restockRawMaterial,
   deleteProduct,
@@ -13,6 +14,7 @@ const {
 } = require('../controllers/inventoryController');
 
 router.post('/raw-materials/inward', inwardRawMaterial);
+router.post('/raw-materials/bulk-import', bulkImportRawMaterials);
 router.post('/raw-materials/restock', restockRawMaterial);
 router.delete('/raw-materials/:id', deleteRawMaterial);
 router.get('/raw-materials', getRawMaterials);

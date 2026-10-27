@@ -303,8 +303,209 @@ const deleteOrder = async (req, res) => {
   }
 };
 
+/**
+ * @desc Bulk import past / historical sales orders and invoices from Excel / Manual sheet
+ * @route POST /api/orders/bulk-import
+ */
+const bulkImportOrders = async (req, res) => {
+  try {
+    const { orders = [], adjustStock = false, adjustPartyBalance = true } = req.body;
+    const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+    const userFilter = req.userFilter || {};
+    const userId = mongoose.Types.ObjectId.isValid(req.userId)
+      ? new mongoose.Types.ObjectId(req.userId)
+      : req.userId;
+
+    if (!Array.isArray(orders) || orders.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No order records provided. Please supply an array of historical orders.',
+      });
+    }
+
+    let createdCount = 0;
+    let failedCount = 0;
+    const errors = [];
+    const processedOrders = [];
+
+    for (let i = 0; i < orders.length; i++) {
+      const row = orders[i];
+      const rawParty = row.partyName || row.party || row.customerName || row.clientName || row.partyId;
+      const rawTotal = row.totalAmount !== undefined ? row.totalAmount : (row.amount || row.billAmount || row.subtotalAmount);
+
+      if (!rawParty || rawTotal === undefined || isNaN(Number(rawTotal))) {
+        failedCount++;
+        errors.push({
+          row: i + 1,
+          item: row,
+          reason: 'Customer/Party name and valid total bill amount are required',
+        });
+        continue;
+      }
+
+      const totalAmount = round2(Number(rawTotal));
+      const rawPaid = row.paidAmount !== undefined ? row.paidAmount : (row.receivedAmount || row.paid || 0);
+      const paidAmount = round2(Math.min(Math.max(Number(rawPaid) || 0, 0), totalAmount));
+      const balanceDue = round2(Math.max(totalAmount - paidAmount, 0));
+
+      let paymentStatus = 'UNPAID';
+      if (balanceDue <= 0) {
+        paymentStatus = 'PAID';
+      } else if (paidAmount > 0) {
+        paymentStatus = 'PARTIAL';
+      }
+
+      const orderDate = row.orderDate || row.date || row.billDate ? new Date(row.orderDate || row.date || row.billDate) : new Date();
+      const rawOrderNumber = row.orderNumber || row.invoiceNumber || row.billNo || row.invoiceNo;
+      const orderNumber = rawOrderNumber && String(rawOrderNumber).trim()
+        ? String(rawOrderNumber).trim().toUpperCase()
+        : `HIST-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+
+      // Locate or auto-create Party
+      let party = null;
+      const partySearchStr = String(rawParty).trim();
+
+      if (isDbConnected) {
+        if (mongoose.Types.ObjectId.isValid(partySearchStr)) {
+          party = await Party.findOne({ _id: partySearchStr, ...userFilter });
+        }
+        if (!party) {
+          party = await Party.findOne({
+            ...userFilter,
+            name: { $regex: new RegExp(`^${partySearchStr.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          });
+        }
+        if (!party) {
+          // Auto create party if not found
+          party = new Party({
+            user: userId,
+            name: partySearchStr,
+            type: 'CUSTOMER',
+            phone: row.phone || '',
+            gstin: row.gstin || '',
+            currentBalance: 0,
+            status: 'ACTIVE',
+          });
+          await party.save();
+        }
+      } else {
+        party = store.parties.find(
+          (p) => (req.isDemoAdmin || p.user === req.userId) &&
+                 (p._id === partySearchStr || p.name?.toLowerCase() === partySearchStr.toLowerCase())
+        );
+        if (!party) {
+          party = {
+            _id: `p_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+            user: userId,
+            name: partySearchStr,
+            type: 'CUSTOMER',
+            phone: row.phone || '',
+            gstin: row.gstin || '',
+            currentBalance: 0,
+            status: 'ACTIVE',
+            createdAt: new Date(),
+          };
+          store.parties.push(party);
+        }
+      }
+
+      // Line Items
+      let items = [];
+      if (Array.isArray(row.items) && row.items.length > 0) {
+        items = row.items.map((it) => ({
+          productName: it.productName || it.name || 'Goods Item',
+          quantity: Number(it.quantity) || 1,
+          unitPrice: round2(Number(it.unitPrice || it.rate || totalAmount)),
+          unit: it.unit || 'Pieces',
+          subtotal: round2(Number(it.subtotal || (Number(it.quantity || 1) * Number(it.unitPrice || totalAmount)))),
+        }));
+      } else {
+        const itemDesc = row.itemDescription || row.productName || row.description || 'Historical Dispatch Bill';
+        items = [
+          {
+            productName: String(itemDesc).trim(),
+            quantity: Number(row.quantity) || 1,
+            unitPrice: totalAmount,
+            unit: row.unit || 'Pieces',
+            subtotal: totalAmount,
+          },
+        ];
+      }
+
+      const orderPayload = {
+        user: userId,
+        orderNumber,
+        party: party._id || party.id,
+        orderDate,
+        items,
+        subtotalAmount: totalAmount,
+        taxRate: Number(row.taxRate) || 0,
+        taxAmount: round2(Number(row.taxAmount) || 0),
+        totalAmount,
+        paidAmount,
+        balanceDue,
+        paymentStatus,
+        dispatchNotes: row.dispatchNotes || row.notes || 'Imported from historical register / Excel',
+      };
+
+      let newOrderData = null;
+
+      if (isDbConnected) {
+        try {
+          const newOrder = new Order(orderPayload);
+          await newOrder.save();
+          newOrderData = newOrder.toObject();
+        } catch (dbErr) {
+          console.warn('[Historical Order Save DB Fallback]:', dbErr.message);
+        }
+      }
+
+      if (!newOrderData) {
+        newOrderData = {
+          _id: `ord_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          ...orderPayload,
+          createdAt: orderDate,
+        };
+      }
+
+      store.orders.unshift(newOrderData);
+
+      // Optionally adjust party balance
+      if (adjustPartyBalance && balanceDue > 0) {
+        party.currentBalance = round2((party.currentBalance || 0) + balanceDue);
+        if (isDbConnected && typeof party.save === 'function') {
+          await party.save();
+        }
+        const memParty = store.parties.find((p) => p._id?.toString() === (party._id || party.id)?.toString());
+        if (memParty) {
+          memParty.currentBalance = round2(party.currentBalance);
+        }
+      }
+
+      processedOrders.push(newOrderData);
+      createdCount++;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully imported ${createdCount} historical orders/bills (${failedCount} skipped).`,
+      stats: {
+        total: orders.length,
+        created: createdCount,
+        failed: failedCount,
+      },
+      errors,
+      orders: processedOrders,
+    });
+  } catch (error) {
+    console.error('Error in bulkImportOrders:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createOrder,
+  bulkImportOrders,
   getOrders,
   getOrderById,
   deleteOrder,

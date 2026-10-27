@@ -13,6 +13,8 @@ import {
   Plus,
   ChevronRight,
   TrendingUp,
+  Database,
+  FileSpreadsheet,
 } from 'lucide-react';
 import QuickStartGuide from '../components/QuickStartGuide';
 import { partyService, orderService, inventoryService } from '../services/api';
@@ -23,6 +25,7 @@ const DashboardPage = ({
   onOpenPaymentModal,
   onOpenOrderModal,
   onOpenInwardModal,
+  onOpenMigrationModal,
   refreshTrigger,
 }) => {
   const [parties, setParties] = useState([]);
@@ -66,6 +69,35 @@ const DashboardPage = ({
     <div className="space-y-6">
       {/* Quick Onboarding Guide */}
       <QuickStartGuide onNavigate={onNavigate} />
+
+      {/* Migration & Old Data Import Hub Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 shrink-0">
+            <Database className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm sm:text-base font-black text-white">
+                Migrate Previous Bahi-Khata or Excel Data
+              </h3>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                पुरानी डेटा एंट्री
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Import customers with old pending balances, warehouse opening stock, and past bills without manual re-calculation.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => onOpenMigrationModal && onOpenMigrationModal('parties')}
+          className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 active:scale-95 shrink-0 border border-indigo-400/30"
+        >
+          <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+          <span>Import Old Data / Excel</span>
+        </button>
+      </div>
 
       {/* KPI Stats Summary Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

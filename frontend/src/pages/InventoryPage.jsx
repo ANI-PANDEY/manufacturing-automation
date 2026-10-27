@@ -17,12 +17,14 @@ import {
   Upload,
   CheckCircle2,
   X,
+  Database,
 } from 'lucide-react';
 import { inventoryService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
 import { useIndustry } from '../context/IndustryContext';
 import RestockModal from '../components/RestockModal';
 import BulkUploadProductModal from '../components/BulkUploadProductModal';
+import DataMigrationModal from '../components/DataMigrationModal';
 
 const InventoryPage = ({ onOpenInwardModal, refreshTrigger }) => {
   const { activePreset } = useIndustry();
@@ -44,6 +46,10 @@ const InventoryPage = ({ onOpenInwardModal, refreshTrigger }) => {
   const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
   const [importNotification, setImportNotification] = useState(null);
   const [recentlyImportedSkus, setRecentlyImportedSkus] = useState([]);
+
+  // Data Migration Modal state (Old Data / Excel Import)
+  const [migrationModalOpen, setMigrationModalOpen] = useState(false);
+  const [migrationModule, setMigrationModule] = useState('rawMaterials');
 
   // Add Product Modal state
   const [showProductModal, setShowProductModal] = useState(false);
@@ -217,6 +223,18 @@ const InventoryPage = ({ onOpenInwardModal, refreshTrigger }) => {
 
         {/* Global Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5 z-10">
+          <button
+            onClick={() => {
+              setMigrationModule(activeSubTab === 'raw' ? 'rawMaterials' : 'products');
+              setMigrationModalOpen(true);
+            }}
+            className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2.5 rounded-2xl text-xs font-extrabold shadow-lg shadow-emerald-600/25 transition transform hover:-translate-y-0.5 active:scale-95"
+            title="Import old stock registers, bahi-khata or Excel sheets"
+          >
+            <Database className="w-4 h-4 text-white" />
+            <span>Import Old Stock / Excel (पुरानी एंट्री)</span>
+          </button>
+
           <button
             onClick={() => setBulkUploadModalOpen(true)}
             className="inline-flex items-center space-x-2 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-white px-4 py-2.5 rounded-2xl text-xs font-extrabold shadow-lg shadow-orange-500/25 transition transform hover:-translate-y-0.5 active:scale-95"
@@ -717,6 +735,14 @@ const InventoryPage = ({ onOpenInwardModal, refreshTrigger }) => {
           </div>
         </div>
       )}
+
+      {/* Old Data Migration Modal */}
+      <DataMigrationModal
+        isOpen={migrationModalOpen}
+        onClose={() => setMigrationModalOpen(false)}
+        initialModule={migrationModule}
+        onSuccess={fetchInventory}
+      />
     </div>
   );
 };

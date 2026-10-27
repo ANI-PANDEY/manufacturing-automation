@@ -35,6 +35,32 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null, us
 
   const rawEvents = [];
 
+  // Include Historical / Manual Opening Balance if recorded for this party
+  const openingBal = round2(party.openingBalance || 0);
+  if (openingBal > 0) {
+    const isPayable = party.openingBalanceType === 'PAYABLE';
+    let openDate = party.openingBalanceDate ? new Date(party.openingBalanceDate) : null;
+    if (!openDate || isNaN(openDate.getTime())) {
+      const earliestOrderTime = rawOrders.length > 0 ? new Date(rawOrders[0].orderDate).getTime() : Date.now();
+      openDate = new Date(earliestOrderTime - 86400000); // 1 day before earliest order
+    }
+
+    rawEvents.push({
+      id: `open_bal_${party._id || party.id || 'initial'}`,
+      date: openDate,
+      entryDate: openDate,
+      type: 'OPENING_BALANCE',
+      refNo: 'OPENING-BAL',
+      debit: isPayable ? 0 : openingBal,
+      credit: isPayable ? openingBal : 0,
+      paymentStatus: 'RECONCILED',
+      paidAmount: 0,
+      balanceDue: isPayable ? 0 : openingBal,
+      notes: `Historical Opening Balance (${isPayable ? 'Payable - We owe vendor' : 'Receivable - Party owes us'}) from manual register / Excel`,
+      items: [],
+    });
+  }
+
   rawOrders.forEach((ord) => {
     rawEvents.push({
       id: ord._id.toString(),
@@ -69,11 +95,13 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null, us
     });
   });
 
-  // Sort chronologically by Payment Date / Value Date
+  // Sort chronologically by Payment Date / Value Date with Opening Balance first
   rawEvents.sort((a, b) => {
     const timeA = a.date.getTime();
     const timeB = b.date.getTime();
     if (timeA !== timeB) return timeA - timeB;
+    if (a.type === 'OPENING_BALANCE') return -1;
+    if (b.type === 'OPENING_BALANCE') return 1;
     if (a.type !== b.type) return a.type === 'DISPATCH' ? -1 : 1;
     return a.entryDate.getTime() - b.entryDate.getTime();
   });
@@ -120,6 +148,9 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null, us
       gstin: party.gstin,
       creditLimit: round2(party.creditLimit),
       currentBalance: round2(party.currentBalance),
+      openingBalance: round2(party.openingBalance || 0),
+      openingBalanceType: party.openingBalanceType || 'RECEIVABLE',
+      openingBalanceDate: party.openingBalanceDate || null,
     },
     openingBalance,
     closingBalance,
