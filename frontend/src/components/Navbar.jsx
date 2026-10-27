@@ -80,7 +80,7 @@ const Navbar = ({
 
   return (
     <>
-      <header className="bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-30 shadow-sm font-sans transition-colors duration-200">
+      <header className="w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-30 shadow-sm font-sans transition-colors duration-200 overflow-x-hidden">
         <div className="w-full px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
             {/* LEFT: Mobile Menu Button & Brand Logo */}

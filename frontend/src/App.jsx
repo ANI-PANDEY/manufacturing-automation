@@ -179,7 +179,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Top Header with Theme Switcher & Admin Logout */}
       <Navbar
         darkMode={darkMode}
@@ -195,13 +195,13 @@ const App = () => {
         setActiveTab={setActiveTab}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden w-full">
         {/* Navigation Sidebar (Desktop) */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {/* Main Content Area with mobile bottom padding */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 pb-24 md:pb-8 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-24 md:pb-8 custom-scrollbar w-full">
+          <div className="w-full max-w-7xl mx-auto">
             {activeTab === 'dashboard' && (
               <DashboardPage
                 onNavigate={setActiveTab}
