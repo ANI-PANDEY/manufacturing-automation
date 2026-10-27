@@ -218,6 +218,8 @@ class InMemoryStore {
       },
     ];
 
+    this.transactions = [];
+
     // Initialize in-memory users array
     const crypto = require('crypto');
     const adminSalt = 'admin_default_salt_2026';

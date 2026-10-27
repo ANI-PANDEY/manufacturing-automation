@@ -233,50 +233,93 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
 
       {!loading && ledgerData && (
         <>
-          {/* Party Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1">Opening Balance</span>
-              <span className="text-lg font-black text-slate-900 dark:text-white font-mono">
-                {formatCurrency(ledgerData.openingBalance)}
-              </span>
-              <span className="text-[10px] text-slate-400 block mt-1">Carried forward prior to start date</span>
-            </div>
+          {/* 3 Prominent Balance Metrics (Step 3.2 Requirement) */}
+          {(() => {
+            const openBal = Number(ledgerData.openingBalance) || 0;
+            const isPayableOpen =
+              ledgerData.party?.openingBalanceType === 'TO_PAY' ||
+              ledgerData.party?.openingBalanceType === 'PAYABLE';
+            const fullPayable = Math.round(((ledgerData.totalDebit || 0) + (isPayableOpen ? 0 : openBal) + Number.EPSILON) * 100) / 100;
+            const totalRec = Math.round(((ledgerData.totalCredit || 0) + (isPayableOpen ? openBal : 0) + Number.EPSILON) * 100) / 100;
+            const remBal = Math.round(((ledgerData.closingBalance !== undefined ? ledgerData.closingBalance : fullPayable - totalRec) + Number.EPSILON) * 100) / 100;
+            const status = remBal <= 0 ? 'PAID' : totalRec > 0 ? 'PARTIAL' : 'UNPAID';
 
-            <div className="bg-gradient-to-br from-amber-500/10 via-white dark:via-slate-900 to-amber-500/5 border border-amber-200 dark:border-amber-500/30 p-4 rounded-2xl shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-700 dark:text-amber-400">Total Dispatches (Debit)</span>
-                <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                  <ArrowUpRight className="w-4 h-4" />
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* 1. [Full Payable] in white/neutral */}
+                <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-sm relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Full Payable (कुल देय)
+                    </span>
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                      <ArrowUpRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
+                    {formatCurrency(fullPayable)}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
+                    Purana udhaar (₹{openBal.toLocaleString('en-IN')}) + Sales Bills
+                  </p>
+                </div>
+
+                {/* 2. [Total Received] in emerald/green */}
+                <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white dark:to-slate-900 border-2 border-emerald-500/30 p-5 rounded-3xl shadow-sm relative overflow-hidden transition-all hover:border-emerald-500/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                      Total Received (कुल जमा)
+                    </span>
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                      <ArrowDownLeft className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                    {formatCurrency(totalRec)}
+                  </div>
+                  <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-2 font-medium">
+                    Kul jama raqam (Cash, UPI, Bank Settlements)
+                  </p>
+                </div>
+
+                {/* 3. [Remaining Balance] in amber/yellow with due status badge */}
+                <div className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-white dark:to-slate-900 border-2 border-amber-500/40 p-5 rounded-3xl shadow-sm relative overflow-hidden transition-all hover:border-amber-500/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                      Remaining Balance (बाकी रकम)
+                    </span>
+
+                    {/* Due status badge: UNPAID / PARTIAL / PAID */}
+                    {status === 'PAID' && (
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500 text-white shadow-sm shadow-emerald-500/25">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>PAID</span>
+                      </span>
+                    )}
+                    {status === 'PARTIAL' && (
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-sky-500 text-white shadow-sm shadow-sky-500/25">
+                        <Clock className="w-3 h-3" />
+                        <span>PARTIAL</span>
+                      </span>
+                    )}
+                    {status === 'UNPAID' && (
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/25">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>UNPAID</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+                    {formatCurrency(remBal)}
+                  </div>
+                  <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-2 font-medium">
+                    Abhi baki kitna lena banta hai
+                  </p>
                 </div>
               </div>
-              <span className="text-lg font-black text-amber-600 dark:text-amber-400 block mt-1 font-mono">
-                {formatCurrency(ledgerData.totalDebit)}
-              </span>
-              <span className="text-[10px] text-amber-600/70 dark:text-amber-400/70 block mt-1">Total outward invoice billing</span>
-            </div>
-
-            <div className="bg-gradient-to-br from-emerald-500/10 via-white dark:via-slate-900 to-emerald-500/5 border border-emerald-200 dark:border-emerald-500/30 p-4 rounded-2xl shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Total Payments (Credit)</span>
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                  <ArrowDownLeft className="w-4 h-4" />
-                </div>
-              </div>
-              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 block mt-1 font-mono">
-                {formatCurrency(ledgerData.totalCredit)}
-              </span>
-              <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 block mt-1">Total customer settlements</span>
-            </div>
-
-            <div className="bg-gradient-to-br from-indigo-500/10 via-white dark:via-slate-900 to-indigo-500/5 border border-indigo-200 dark:border-indigo-500/30 p-4 rounded-2xl shadow-sm">
-              <span className="text-xs font-extrabold text-indigo-700 dark:text-indigo-400 block mb-1">Closing Outstanding Due</span>
-              <span className="text-xl font-black text-slate-900 dark:text-white font-mono">
-                {formatCurrency(ledgerData.closingBalance)}
-              </span>
-              <span className="text-[10px] text-indigo-600/70 dark:text-indigo-400/70 block mt-1">Current running balance owed</span>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Date-wise Passbook Table */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden transition-colors">

@@ -37,7 +37,7 @@ const partySchema = new mongoose.Schema(
     },
     creditLimit: {
       type: Number,
-      default: 500000,
+      default: 0,
     },
     // Current outstanding balance (Positive = Party owes money / Debit balance)
     currentBalance: {
@@ -51,8 +51,8 @@ const partySchema = new mongoose.Schema(
     },
     openingBalanceType: {
       type: String,
-      enum: ['RECEIVABLE', 'PAYABLE'],
-      default: 'RECEIVABLE',
+      enum: ['TO_RECEIVE', 'TO_PAY', 'RECEIVABLE', 'PAYABLE'],
+      default: 'TO_RECEIVE',
     },
     openingBalanceDate: {
       type: Date,

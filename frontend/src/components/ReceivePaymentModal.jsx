@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CreditCard, Calendar, FileText, CheckCircle2, AlertCircle, RefreshCw, Info, HelpCircle } from 'lucide-react';
-import { paymentService, orderService, partyService } from '../services/api';
+import { paymentService, transactionService, orderService, partyService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -80,17 +80,27 @@ const ReceivePaymentModal = ({ isOpen, onClose, parties = [], selectedPartyId = 
       setLoading(true);
       const payload = {
         partyId,
+        date: paymentDate,
         paymentDate,
+        amount: Number(amountPaid),
         amountPaid: Number(amountPaid),
         paymentMode,
+        referenceId: referenceNo,
         referenceNo,
         allocationType,
         targetOrderId: allocationType === 'SPECIFIC_ORDER' ? targetOrderId : undefined,
         notes,
       };
 
-      const res = await paymentService.receive(payload);
-      if (res.data?.success) {
+      let res = null;
+      try {
+        res = await transactionService.receivePayment(payload);
+      } catch (txErr) {
+        console.warn('transactionService error, attempting paymentService fallback:', txErr.message);
+        res = await paymentService.receive(payload);
+      }
+
+      if (res?.data?.success) {
         setAmountPaid('');
         setReferenceNo('');
         setNotes('');

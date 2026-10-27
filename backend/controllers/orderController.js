@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Party = require('../models/Party');
+const Transaction = require('../models/Transaction');
 const store = require('../utils/inMemoryStore');
 const { round2 } = require('../utils/mathUtils');
 
@@ -137,6 +138,34 @@ const createOrder = async (req, res) => {
     const memParty = store.parties.find((p) => p._id === partyId || p._id?.toString() === partyId);
     if (memParty) {
       memParty.currentBalance = round2(party.currentBalance);
+    }
+
+    // Record in Bahi-Khata ledger as INVOICE transaction
+    try {
+      const invoiceTxPayload = {
+        user: userId,
+        partyId: party._id || partyId,
+        date: orderPayload.orderDate,
+        type: 'INVOICE',
+        debit: round2(totalAmount),
+        credit: 0,
+        paymentMode: 'CASH',
+        referenceId: orderNumber,
+        notes: dispatchNotes || `Invoice for order #${orderNumber} (${processedItems.length} items)`,
+      };
+
+      if (isDbConnected) {
+        await Transaction.create(invoiceTxPayload);
+      } else {
+        if (!Array.isArray(store.transactions)) store.transactions = [];
+        store.transactions.unshift({
+          _id: `tx_${Date.now()}`,
+          ...invoiceTxPayload,
+          createdAt: new Date(),
+        });
+      }
+    } catch (txErr) {
+      console.warn('[Transaction Save Warning]:', txErr.message);
     }
 
     return res.status(201).json({
@@ -480,6 +509,57 @@ const bulkImportOrders = async (req, res) => {
         if (memParty) {
           memParty.currentBalance = round2(party.currentBalance);
         }
+      }
+
+      // Record in Bahi-Khata ledger
+      try {
+        const histInvoiceTx = {
+          user: userId,
+          partyId: party._id || party.id,
+          date: orderDate,
+          type: 'INVOICE',
+          debit: totalAmount,
+          credit: 0,
+          paymentMode: 'CASH',
+          referenceId: orderNumber,
+          notes: orderPayload.dispatchNotes || `Historical Invoice #${orderNumber}`,
+        };
+        if (isDbConnected) {
+          await Transaction.create(histInvoiceTx);
+        } else {
+          if (!Array.isArray(store.transactions)) store.transactions = [];
+          store.transactions.unshift({
+            _id: `tx_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+            ...histInvoiceTx,
+            createdAt: orderDate,
+          });
+        }
+
+        // If part of the bill was already paid historically, record payment received
+        if (paidAmount > 0) {
+          const histPayTx = {
+            user: userId,
+            partyId: party._id || party.id,
+            date: orderDate,
+            type: 'PAYMENT_RECEIVED',
+            debit: 0,
+            credit: paidAmount,
+            paymentMode: 'CASH',
+            referenceId: `SETTLE-${orderNumber}`,
+            notes: `Old payment received against #${orderNumber}`,
+          };
+          if (isDbConnected) {
+            await Transaction.create(histPayTx);
+          } else {
+            store.transactions.unshift({
+              _id: `tx_p_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+              ...histPayTx,
+              createdAt: orderDate,
+            });
+          }
+        }
+      } catch (txErr) {
+        console.warn('[Historical Order Ledger Warning]:', txErr.message);
       }
 
       processedOrders.push(newOrderData);

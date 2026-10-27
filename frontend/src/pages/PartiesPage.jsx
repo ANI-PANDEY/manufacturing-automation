@@ -24,6 +24,8 @@ import {
 import { partyService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
 import DataMigrationModal from '../components/DataMigrationModal';
+import BahiKhataMigrationGrid from '../components/BahiKhataMigrationGrid';
+import BahiKhataSummaryCard from '../components/BahiKhataSummaryCard';
 
 const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal, refreshParties }) => {
   // Add Party Modal State
@@ -42,6 +44,8 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
 
   // Migration modal state
   const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
+  const [showBahiKhataMigration, setShowBahiKhataMigration] = useState(false);
+  const [bahiKhataModalParty, setBahiKhataModalParty] = useState(null);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,11 +171,19 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
 
         <div className="z-10 flex flex-wrap items-center gap-2.5 shrink-0">
           <button
+            onClick={() => setShowBahiKhataMigration((prev) => !prev)}
+            className="inline-flex items-center space-x-2 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-200 backdrop-blur-md px-4 py-2.5 rounded-2xl text-xs font-black border border-amber-500/30 transition transform hover:-translate-y-0.5 active:scale-95 shadow-sm"
+          >
+            <BookOpen className="w-4 h-4 text-amber-400" />
+            <span>📖 Bahi-Khata Migration (रजिस्टर माइग्रेशन)</span>
+          </button>
+
+          <button
             onClick={() => setIsMigrationModalOpen(true)}
             className="inline-flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-4 py-2.5 rounded-2xl text-xs font-extrabold border border-white/20 transition transform hover:-translate-y-0.5 active:scale-95 shadow-sm"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-            <span>Import Old Data / Excel (पुरानी डेटा एंट्री)</span>
+            <span>Import Old Data / Excel</span>
           </button>
 
           <button
@@ -183,6 +195,18 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
           </button>
         </div>
       </div>
+
+      {/* Pen-and-Paper Bahi-Khata Migration Grid Accordion */}
+      {showBahiKhataMigration && (
+        <div className="animate-fadeIn">
+          <BahiKhataMigrationGrid
+            onSuccess={() => {
+              refreshParties && refreshParties();
+            }}
+            onCancel={() => setShowBahiKhataMigration(false)}
+          />
+        </div>
+      )}
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -357,6 +381,40 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
           ))
         )}
       </div>
+
+      {/* Full Bahi-Khata Ledger Modal */}
+      {bahiKhataModalParty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <BookOpen className="w-5 h-5 text-indigo-500" />
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                  Bahi-Khata Ledger: {bahiKhataModalParty.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setBahiKhataModalParty(null)}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <BahiKhataSummaryCard
+              partyId={bahiKhataModalParty._id}
+              partyName={bahiKhataModalParty.name}
+              onOpenPaymentModal={(pid) => {
+                onOpenPaymentModal && onOpenPaymentModal(pid);
+              }}
+              refreshTrigger={displayParties}
+              onPaymentSuccess={() => {
+                refreshParties && refreshParties();
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Full Customer Profile View Modal */}
       {selectedPartyProfile && (

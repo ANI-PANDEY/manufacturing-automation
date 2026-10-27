@@ -46,8 +46,15 @@ export const partyService = {
   getById: (id) => api.get(`/parties/${id}`),
   create: (data) => api.post('/parties', data),
   bulkImport: (data) => api.post('/parties/bulk-import', data),
+  migrateBulk: (data) => api.post('/parties/migrate-bulk', data),
+  getLedgerSummary: (partyId) => api.get(`/parties/${partyId}/ledger-summary`),
   delete: (id) => api.delete(`/parties/${id}`),
   getLedger: (id, params) => api.get(`/parties/${id}/ledger`, { params }),
+};
+
+export const transactionService = {
+  receivePayment: (data) => api.post('/transactions/receive-payment', data),
+  getByParty: (partyId) => api.get(`/transactions/party/${partyId}`),
 };
 
 export const orderService = {
@@ -60,6 +67,7 @@ export const orderService = {
 
 export const paymentService = {
   receive: (data) => api.post('/payments/receive', data),
+  receiveTransaction: (data) => api.post('/transactions/receive-payment', data),
   getByParty: (partyId) => api.get(`/payments/party/${partyId}`),
 };
 

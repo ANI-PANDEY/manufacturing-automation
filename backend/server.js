@@ -47,6 +47,7 @@ app.use('/api/payments', protect, require('./routes/paymentRoutes'));
 app.use('/api/orders', protect, require('./routes/orderRoutes'));
 app.use('/api/inventory', protect, require('./routes/inventoryRoutes'));
 app.use('/api/migration', protect, require('./routes/migrationRoutes'));
+app.use('/api/transactions', protect, require('./routes/transactionRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
