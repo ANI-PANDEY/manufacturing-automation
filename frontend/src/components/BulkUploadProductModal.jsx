@@ -187,11 +187,23 @@ const BulkUploadProductModal = ({ isOpen, onClose, existingProducts = [], onSucc
 
     reader.onload = (evt) => {
       try {
-        const data = evt.target.result;
-        const workbook = XLSX.read(data, { type: isBinary ? 'binary' : 'string' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        let workbook;
+        if (isBinary) {
+          const u8 = new Uint8Array(evt.target.result);
+          workbook = XLSX.read(u8, { type: 'array' });
+        } else {
+          workbook = XLSX.read(evt.target.result, { type: 'string' });
+        }
+        
+        let targetSheet = workbook.Sheets[workbook.SheetNames[0]];
+        for (const sName of workbook.SheetNames) {
+          const ws = workbook.Sheets[sName];
+          if (ws && ws['!ref']) {
+            targetSheet = ws;
+            break;
+          }
+        }
+        const json = XLSX.utils.sheet_to_json(targetSheet, { defval: '' });
         processRawData(json, file.name, lowerName.endsWith('.csv') ? 'csv' : 'excel');
       } catch (err) {
         console.error('File parsing error:', err);
@@ -200,7 +212,7 @@ const BulkUploadProductModal = ({ isOpen, onClose, existingProducts = [], onSucc
     };
 
     if (isBinary) {
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     } else {
       reader.readAsText(file);
     }

@@ -70,12 +70,18 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
       return;
     }
 
+    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    if (phone.trim() && cleanPhone.length !== 10) {
+      setError('कृपया 10 अंकों का मान्य मोबाइल नंबर दर्ज करें (Phone number must be exactly 10 digits)');
+      return;
+    }
+
     try {
       setLoading(true);
       const res = await partyService.create({
         name: name.trim(),
         type,
-        phone,
+        phone: cleanPhone,
         email,
         address,
         gstin: gstin.toUpperCase(),
@@ -292,7 +298,9 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
                   </div>
                   <div className="flex items-center space-x-2">
                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="text-slate-600 dark:text-slate-300">{p.phone || 'No phone provided'}</span>
+                    <span className="text-slate-600 dark:text-slate-300 font-mono font-bold">
+                      {p.phone ? `+91 ${p.phone.replace(/\D/g, '').slice(-10)}` : 'No phone provided'}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -378,7 +386,9 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
                 <span className="text-slate-400 block text-[10px] font-bold uppercase">Phone Number</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedPartyProfile.phone || 'N/A'}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                  {selectedPartyProfile.phone ? `+91 ${selectedPartyProfile.phone.replace(/\D/g, '').slice(-10)}` : 'N/A'}
+                </span>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
                 <span className="text-slate-400 block text-[10px] font-bold uppercase">Email Address</span>
@@ -523,14 +533,24 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 98201 12345"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-3.5 py-2"
-                />
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Phone Number (मोबाइल नंबर - 10 Digits)
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-black text-indigo-600 dark:text-indigo-400 select-none border-r border-slate-300 dark:border-slate-700 pr-2">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="9820112345"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-mono font-bold rounded-xl pl-14 pr-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">10 अंकों से ज्यादा नंबर दर्ज नहीं होगा (Max 10 digits only)</p>
               </div>
 
               <div>

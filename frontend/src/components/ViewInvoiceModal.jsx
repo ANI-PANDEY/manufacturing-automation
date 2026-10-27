@@ -169,7 +169,9 @@ const ViewInvoiceModal = ({ isOpen, onClose, order = null, onDeleteOrder = null 
               </span>
               <p className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{order.party?.name || 'N/A'}</p>
               <p className="text-indigo-600 dark:text-indigo-400 font-mono font-bold">GSTIN: {order.party?.gstin || 'N/A'}</p>
-              <p className="text-slate-600 dark:text-slate-400">Phone: {order.party?.phone || 'N/A'}</p>
+              <p className="text-slate-600 dark:text-slate-400 font-mono">
+                Phone: <span className="font-bold text-slate-900 dark:text-white">{order.party?.phone ? `+91 ${order.party.phone.replace(/\D/g, '').slice(-10)}` : 'N/A'}</span>
+              </p>
               <p className="text-slate-600 dark:text-slate-400 truncate">Address: {order.party?.address || 'N/A'}</p>
             </div>
           </div>

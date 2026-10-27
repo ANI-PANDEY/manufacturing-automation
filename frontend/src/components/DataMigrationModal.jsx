@@ -104,11 +104,11 @@ const DataMigrationModal = ({
 
   if (!isOpen) return null;
 
-  // Header normalization helper for fuzzy column matching
+  // Header normalization helper for fuzzy column matching (supports Hindi Devanagari & English)
   const cleanKey = (key) =>
     String(key || '')
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+      .replace(/[^\w\d\u0900-\u097F]/g, '');
 
   // ==========================================
   // Sample Excel Template Generator
@@ -249,7 +249,16 @@ const DataMigrationModal = ({
   // Row Mapping & Normalization
   // ==========================================
   const mapRowData = (row, modId) => {
-    const keys = Object.keys(row);
+    // Helper to sanitize phone strictly to 10 digits
+    const sanitizePhone10 = (raw) => {
+      if (!raw) return '';
+      let clean = String(raw).replace(/\D/g, '');
+      if (clean.length === 12 && clean.startsWith('91')) clean = clean.slice(2);
+      else if (clean.length === 11 && clean.startsWith('0')) clean = clean.slice(1);
+      return clean.slice(-10);
+    };
+
+    const keys = Array.isArray(row) ? [] : Object.keys(row || {});
 
     if (modId === 'parties') {
       let name = '';
@@ -262,52 +271,132 @@ const DataMigrationModal = ({
       let openingBalanceType = 'RECEIVABLE';
       let creditLimit = 500000;
 
-      keys.forEach((k) => {
-        const norm = cleanKey(k);
-        const val = row[k];
-        if (!val && val !== 0) return;
+      if (Array.isArray(row)) {
+        // Positional array row (when sheet had no headers or raw list)
+        row.forEach((cell) => {
+          const s = String(cell || '').trim();
+          if (!s) return;
+          const digits = s.replace(/\D/g, '');
 
-        if (['partyname', 'party', 'customer', 'customername', 'client', 'clientname', 'name', 'grahak'].some((p) => norm.includes(p))) {
-          if (!name) name = String(val).trim();
-        } else if (['type', 'partytype', 'role'].some((p) => norm.includes(p))) {
-          const t = String(val).toUpperCase();
-          if (t.includes('VEN') || t.includes('SUPP')) type = 'VENDOR';
-          else if (t.includes('BOTH')) type = 'BOTH';
-          else type = 'CUSTOMER';
-        } else if (['phone', 'mobile', 'contact', 'tel', 'cell'].some((p) => norm.includes(p))) {
-          if (!phone) phone = String(val).trim();
-        } else if (norm.includes('email') || norm.includes('mail')) {
-          if (!email) email = String(val).trim();
-        } else if (norm.includes('address') || norm.includes('pata') || norm.includes('location')) {
-          if (!address) address = String(val).trim();
-        } else if (norm.includes('gst') || norm.includes('gstin')) {
-          if (!gstin) gstin = String(val).trim().toUpperCase();
-        } else if (['openingbalance', 'puranabakaya', 'bakaya', 'balance', 'oldbalance', 'due', 'amount'].some((p) => norm.includes(p))) {
-          const num = Number(String(val).replace(/[^0-9.-]/g, ''));
-          if (!isNaN(num)) openingBalance = num;
-        } else if (['balancetype', 'type', 'debitcredit', 'dr', 'cr'].some((p) => norm.includes(p))) {
-          const t = String(val).toUpperCase();
-          if (t.includes('PAY') || t.includes('CR') || t.includes('DENA')) openingBalanceType = 'PAYABLE';
-          else openingBalanceType = 'RECEIVABLE';
-        } else if (norm.includes('creditlimit') || norm.includes('limit')) {
-          const num = Number(String(val).replace(/[^0-9.-]/g, ''));
-          if (!isNaN(num)) creditLimit = num;
+          if ((digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) && !phone) {
+            phone = sanitizePhone10(digits);
+          } else if (/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(s) && !gstin) {
+            gstin = s.toUpperCase();
+          } else if (s.includes('@') && !email) {
+            email = s.toLowerCase();
+          } else if (/^[0-9]+(\.[0-9]+)?$/.test(s.replace(/,/g, '')) && name && !openingBalance) {
+            openingBalance = Number(s.replace(/,/g, ''));
+          } else if (!name && !/^\d+$/.test(s)) {
+            name = s;
+          } else if (name && !address) {
+            address = s;
+          }
+        });
+      } else {
+        // Object format with column keys
+        const keys = Object.keys(row);
+        keys.forEach((k) => {
+          const rawKey = String(k || '').toLowerCase();
+          const norm = cleanKey(k);
+          const val = row[k];
+          if (!val && val !== 0) return;
+
+          // Match Party / Customer Name
+          if (
+            /party|customer|client|ledger|particulars|firm|company|buyer|account|grahak|vyapari|khatedar|नाम|ग्राहक|पार्टी|खाता|लेजर|फर्म/i.test(
+              rawKey
+            ) ||
+            norm === 'name' ||
+            norm.endsWith('name') ||
+            norm.startsWith('name')
+          ) {
+            if (!name && typeof val === 'string' && val.trim()) {
+              name = String(val).trim();
+            }
+          }
+          // Match Phone / Mobile
+          else if (/phone|mobile|contact|tel|cell|whatsapp|mob|sampark|फोन|मोबाइल|नंबर|संपर्क/i.test(rawKey)) {
+            if (!phone) {
+              phone = sanitizePhone10(val);
+            }
+          }
+          // Match Opening Balance
+          else if (
+            /balance|opening|due|bakaya|baki|hisab|outstanding|amount|purana|debit|credit|dr|cr|बकाया|बाकी|ओपनिंग|बैलेंस|हिसाब|राशि/i.test(
+              rawKey
+            )
+          ) {
+            const num = Number(String(val).replace(/[^0-9.-]/g, ''));
+            if (!isNaN(num) && num !== 0) openingBalance = num;
+          }
+          // Match Balance Type (Receivable vs Payable)
+          else if (/type|baltype|drcr|crdr|debitcredit|देना|लेना/i.test(rawKey)) {
+            const t = String(val).toUpperCase();
+            if (t.includes('PAY') || t.includes('CR') || t.includes('CREDIT') || t.includes('DENA')) {
+              openingBalanceType = 'PAYABLE';
+            } else {
+              openingBalanceType = 'RECEIVABLE';
+            }
+          }
+          // Match Party Role (Customer vs Vendor)
+          else if (/role|partytype|vendcust/i.test(rawKey)) {
+            const t = String(val).toUpperCase();
+            if (t.includes('VEN') || t.includes('SUPP')) type = 'VENDOR';
+            else if (t.includes('BOTH')) type = 'BOTH';
+            else type = 'CUSTOMER';
+          }
+          // Match GSTIN
+          else if (/gst|gstin|जीएसटी/i.test(rawKey)) {
+            if (!gstin) gstin = String(val).trim().toUpperCase();
+          }
+          // Match Email
+          else if (/email|mail/i.test(rawKey)) {
+            if (!email) email = String(val).trim().toLowerCase();
+          }
+          // Match Address
+          else if (/address|city|location|pata|shahar|state|पता|शहर/i.test(rawKey)) {
+            if (!address) address = String(val).trim();
+          }
+        });
+
+        // Smart Fallback if name was not matched by headers
+        if (!name) {
+          for (const k of keys) {
+            const v = String(row[k] || '').trim();
+            if (v && !/^\d+$/.test(v) && !v.includes('@') && v.length >= 2 && !/balance|amount|phone|mobile|date/i.test(k)) {
+              name = v;
+              break;
+            }
+          }
         }
-      });
+
+        // Smart Fallback if phone was not matched
+        if (!phone) {
+          for (const k of keys) {
+            const digits = String(row[k] || '').replace(/\D/g, '');
+            if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
+              phone = sanitizePhone10(digits);
+              break;
+            }
+          }
+        }
+      }
+
+      phone = sanitizePhone10(phone);
 
       return {
         id: `row_${Math.random()}`,
-        name,
+        name: name ? name.trim() : '',
         type,
         phone,
         email,
         address,
         gstin,
-        openingBalance,
+        openingBalance: Math.abs(Number(openingBalance) || 0),
         openingBalanceType,
-        creditLimit,
-        isValid: Boolean(name),
-        error: !name ? 'Party Name is required' : null,
+        creditLimit: Number(creditLimit) || 500000,
+        isValid: Boolean(name && name.trim()),
+        error: !name || !name.trim() ? 'Party Name is required (नाम जरूरी है)' : null,
       };
     }
 
@@ -494,19 +583,152 @@ const DataMigrationModal = ({
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-        const firstSheetName = wb.SheetNames[0];
-        const ws = wb.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        const buffer = evt.target.result;
+        const data = new Uint8Array(buffer);
+        const wb = XLSX.read(data, { type: 'array', cellDates: true });
 
-        if (!jsonData || jsonData.length === 0) {
-          setErrorMsg('No data rows found in the uploaded spreadsheet. Please check the file.');
+        if (!wb.SheetNames || wb.SheetNames.length === 0) {
+          setErrorMsg('No sheets found in the uploaded spreadsheet.');
           setLoading(false);
           return;
         }
 
-        const mapped = jsonData.map((r) => mapRowData(r, activeModule));
+        // 1. Scan sheets to find the first sheet with actual data rows
+        let bestSheetName = wb.SheetNames[0];
+        let bestMatrix = [];
+
+        for (const sName of wb.SheetNames) {
+          const wsCandidate = wb.Sheets[sName];
+          if (!wsCandidate || !wsCandidate['!ref']) continue;
+          const matrix = XLSX.utils.sheet_to_json(wsCandidate, { header: 1, defval: '' });
+          const hasContent = matrix.some((r) => Array.isArray(r) && r.some((c) => String(c).trim() !== ''));
+          if (hasContent) {
+            bestSheetName = sName;
+            bestMatrix = matrix;
+            break;
+          }
+        }
+
+        if (bestMatrix.length === 0) {
+          const ws = wb.Sheets[bestSheetName];
+          bestMatrix = ws ? XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) : [];
+        }
+
+        // Filter out completely blank rows
+        const nonEmptyRows = bestMatrix
+          .map((row, originalIndex) => ({ row, originalIndex }))
+          .filter(({ row }) => Array.isArray(row) && row.some((c) => String(c).trim() !== ''));
+
+        if (nonEmptyRows.length === 0) {
+          setErrorMsg(`Spreadsheet (${bestSheetName}) contains no readable data rows.`);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Intelligent Header Row Finder
+        // Real-world Excel sheets often have title banners, company names, or merged cells in rows 1-3.
+        // We scan the first 25 non-empty rows for common business headers across English & Hindi.
+        const headerKeywords = [
+          'party', 'customer', 'client', 'ledger', 'particulars', 'buyer', 'firm', 'company', 'name',
+          'phone', 'mobile', 'contact', 'cell', 'tel', 'whatsapp', 'sampark',
+          'balance', 'opening', 'due', 'bakaya', 'baki', 'outstanding', 'amount', 'dr', 'cr',
+          'address', 'city', 'location', 'pata', 'state', 'gst', 'gstin', 'email', 'mail',
+          'product', 'item', 'material', 'sku', 'price', 'rate', 'stock', 'qty', 'quantity', 'unit',
+          'order', 'bill', 'invoice', 'sr', 'sno', 'no',
+          // Hindi & Devanagari synonyms
+          'नाम', 'ग्राहक', 'पार्टी', 'मोबाइल', 'फोन', 'नंबर', 'संपर्क', 'बकाया', 'बाकी', 'बैलेंस', 'हिसाब', 'राशि', 'पता', 'शहर', 'जीएसटी'
+        ];
+
+        let bestHeaderIdx = -1;
+        let maxMatchCount = 0;
+
+        for (let i = 0; i < Math.min(25, nonEmptyRows.length); i++) {
+          const row = nonEmptyRows[i].row;
+          let matchCount = 0;
+          for (const cell of row) {
+            const str = String(cell || '').trim().toLowerCase();
+            if (!str) continue;
+            if (headerKeywords.some((kw) => str.includes(kw))) {
+              matchCount++;
+            }
+          }
+          if (matchCount > maxMatchCount && matchCount >= 2) {
+            maxMatchCount = matchCount;
+            bestHeaderIdx = i;
+          }
+        }
+
+        let rowsToMap = [];
+
+        if (bestHeaderIdx !== -1) {
+          // Detected header row at bestHeaderIdx
+          const headerCells = nonEmptyRows[bestHeaderIdx].row.map((h, colIdx) => {
+            const s = String(h || '').trim();
+            return s || `Col_${colIdx + 1}`;
+          });
+
+          // All subsequent rows are data rows
+          const dataSlice = nonEmptyRows.slice(bestHeaderIdx + 1);
+          rowsToMap = dataSlice.map(({ row }) => {
+            const obj = {};
+            headerCells.forEach((colName, cIdx) => {
+              obj[colName] = row[cIdx] !== undefined ? row[cIdx] : '';
+            });
+            // Also store row array for positional fallback
+            obj._rawCells = row;
+            return obj;
+          });
+        } else {
+          // Fallback: If no keywords matched, check if row 0 looks like string headers
+          const firstRow = nonEmptyRows[0].row;
+          const isRow0Header =
+            firstRow.length >= 2 &&
+            firstRow.every((c) => typeof c === 'string' && !/^\d+$/.test(c.trim()) && c.trim().length > 0);
+
+          if (isRow0Header && nonEmptyRows.length > 1) {
+            const headerCells = firstRow.map((h, colIdx) => String(h || '').trim() || `Col_${colIdx + 1}`);
+            rowsToMap = nonEmptyRows.slice(1).map(({ row }) => {
+              const obj = {};
+              headerCells.forEach((colName, cIdx) => {
+                obj[colName] = row[cIdx] !== undefined ? row[cIdx] : '';
+              });
+              obj._rawCells = row;
+              return obj;
+            });
+          } else {
+            // Raw positional data: Pass the array rows directly into mapRowData
+            rowsToMap = nonEmptyRows.map(({ row }) => row);
+          }
+        }
+
+        // Map and normalize each row
+        const mapped = rowsToMap
+          .map((r) => mapRowData(r, activeModule))
+          .filter((r) => {
+            // Filter out empty rows or footer totals
+            if (activeModule === 'parties') {
+              return Boolean(r.name?.trim() || r.phone?.trim() || r.openingBalance);
+            }
+            if (activeModule === 'products') {
+              return Boolean(r.productName?.trim() || r.unitPrice || r.stockQuantity);
+            }
+            if (activeModule === 'rawMaterials') {
+              return Boolean(r.materialName?.trim() || r.quantityInStock);
+            }
+            if (activeModule === 'orders') {
+              return Boolean(r.partyName?.trim() || r.totalAmount);
+            }
+            return true;
+          });
+
+        if (!mapped || mapped.length === 0) {
+          setErrorMsg(
+            'Spreadsheet parsed, but no valid records were detected. Please ensure your sheet includes Party/Customer Name or Phone.'
+          );
+          setLoading(false);
+          return;
+        }
+
         setParsedRows(mapped);
       } catch (err) {
         console.error('File parsing error:', err);
@@ -521,7 +743,7 @@ const DataMigrationModal = ({
       setLoading(false);
     };
 
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   // Drag and drop handlers
@@ -614,12 +836,21 @@ const DataMigrationModal = ({
     setParsedRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r;
-        const updated = { ...r, [field]: value };
+        const finalValue = field === 'phone' ? String(value || '').replace(/\D/g, '').slice(0, 10) : value;
+        const updated = { ...r, [field]: finalValue };
 
         // Re-validate row
         if (activeModule === 'parties') {
-          updated.isValid = Boolean(updated.name?.trim());
-          updated.error = !updated.isValid ? 'Party Name required' : null;
+          if (!updated.name?.trim()) {
+            updated.isValid = false;
+            updated.error = 'Party Name required';
+          } else if (updated.phone && updated.phone.length !== 10) {
+            updated.isValid = false;
+            updated.error = 'Phone number must be exactly 10 digits';
+          } else {
+            updated.isValid = true;
+            updated.error = null;
+          }
         } else if (activeModule === 'products') {
           updated.isValid = Boolean(updated.productName?.trim() && Number(updated.unitPrice) >= 0);
           updated.error = !updated.isValid ? 'Valid name and price required' : null;
@@ -982,7 +1213,7 @@ const DataMigrationModal = ({
                         <>
                           <th className="py-2.5 px-3">Party Name *</th>
                           <th className="py-2.5 px-3 w-28">Type</th>
-                          <th className="py-2.5 px-3 w-32">Phone</th>
+                          <th className="py-2.5 px-3 w-36">Phone (10 Digits)</th>
                           <th className="py-2.5 px-3 w-36">Opening Bal (₹)</th>
                           <th className="py-2.5 px-3 w-32">Bal Type</th>
                           <th className="py-2.5 px-3 w-36">GSTIN</th>
@@ -1078,13 +1309,23 @@ const DataMigrationModal = ({
                                 </select>
                               </td>
                               <td className="py-1.5 px-2">
-                                <input
-                                  type="text"
-                                  value={r.phone || ''}
-                                  onChange={(e) => handleUpdateRowField(r.id, 'phone', e.target.value)}
-                                  placeholder="Mobile"
-                                  className="w-full px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none"
-                                />
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-1 rounded border border-slate-200 dark:border-slate-700 select-none">
+                                    +91
+                                  </span>
+                                  <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    maxLength={10}
+                                    value={r.phone || ''}
+                                    onChange={(e) => {
+                                      const clean = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                      handleUpdateRowField(r.id, 'phone', clean);
+                                    }}
+                                    placeholder="10 Digits"
+                                    className="w-full px-1.5 py-1 rounded font-mono text-xs bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none"
+                                  />
+                                </div>
                               </td>
                               <td className="py-1.5 px-2">
                                 <input

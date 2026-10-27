@@ -193,7 +193,12 @@ const OrdersPage = ({ onOpenOrderModal, refreshTrigger }) => {
                       {new Date(ord.orderDate).toLocaleDateString('en-IN')}
                     </td>
                     <td className="py-4 px-4 font-bold text-slate-900 dark:text-white">
-                      {ord.party?.name || 'N/A'}
+                      <div>{ord.party?.name || 'N/A'}</div>
+                      {ord.party?.phone && (
+                        <div className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400">
+                          +91 {ord.party.phone.replace(/\D/g, '').slice(-10)}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-right font-mono text-slate-500 dark:text-slate-400">
                       {formatCurrency(ord.subtotalAmount)}

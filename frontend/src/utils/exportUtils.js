@@ -44,12 +44,14 @@ export const shareInvoiceOnWhatsApp = (order, companyName = 'Manufacturing ERP E
     upiText = `\n\n⚡ *PAY VIA UPI (GPay / PhonePe / Paytm):*\nUPI ID: \`${upiId}\`\nAmount Due: *₹${order.balanceDue}*`;
   }
 
+  const customer10Ph = order.party?.phone ? String(order.party.phone).replace(/\D/g, '').slice(-10) : '';
+
   const message = 
 `🧾 *TAX INVOICE BILL* from *${companyName}*
 ----------------------------------------
 *Invoice No:* ${order.orderNumber}
 *Date:* ${new Date(order.orderDate).toLocaleDateString('en-IN')}
-*Billed To:* ${customerName}
+*Billed To:* ${customerName}${customer10Ph ? `\n*Phone:* +91 ${customer10Ph}` : ''}
 
 📦 *ITEMS SUMMARY:*
 ${itemsList}
@@ -144,7 +146,8 @@ export const exportLedgerToPDF = (ledgerData, startDate = null, endDate = null, 
   doc.text(`Party: ${party?.name || 'N/A'}`, 18, 46);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`GSTIN: ${party?.gstin || 'N/A'} | Phone: ${party?.phone || 'N/A'}`, 18, 52);
+  const ledgerPh = party?.phone ? `+91 ${String(party.phone).replace(/\D/g, '').slice(-10)}` : 'N/A';
+  doc.text(`GSTIN: ${party?.gstin || 'N/A'} | Phone: ${ledgerPh}`, 18, 52);
   doc.text(`Address: ${party?.address || 'N/A'}`, 18, 58);
   doc.text(`Statement Period: ${startDate || 'Beginning'} to ${endDate || 'Present'}`, 18, 64);
 
@@ -285,7 +288,8 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`GSTIN: ${order.party?.gstin || 'N/A'} | Phone: ${order.party?.phone || 'N/A'}`, 18, 57);
+  const invoicePh = order.party?.phone ? `+91 ${String(order.party.phone).replace(/\D/g, '').slice(-10)}` : 'N/A';
+  doc.text(`GSTIN: ${order.party?.gstin || 'N/A'} | Phone: ${invoicePh}`, 18, 57);
   doc.text(`Address: ${order.party?.address || 'N/A'}`, 18, 64);
 
   // Items Table

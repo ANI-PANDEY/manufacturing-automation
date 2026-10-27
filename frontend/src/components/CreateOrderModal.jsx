@@ -151,12 +151,28 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
                 required
               >
                 <option value="">-- Choose Party --</option>
-                {parties.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name} ({p.gstin || 'No GSTIN'})
-                  </option>
-                ))}
+                {parties.map((p) => {
+                  const cleanPh = p.phone ? p.phone.replace(/\D/g, '').slice(-10) : '';
+                  return (
+                    <option key={p._id} value={p._id}>
+                      {p.name} {cleanPh ? `(📞 +91 ${cleanPh})` : ''} {p.gstin ? `[GST: ${p.gstin}]` : ''}
+                    </option>
+                  );
+                })}
               </select>
+              {partyId && (() => {
+                const sel = parties.find((p) => p._id === partyId);
+                if (!sel) return null;
+                const ph = sel.phone ? sel.phone.replace(/\D/g, '').slice(-10) : '';
+                return (
+                  <div className="mt-1.5 px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 text-xs flex items-center justify-between">
+                    <span className="font-bold text-sky-900 dark:text-sky-200">
+                      Customer Contact: <span className="font-mono text-sky-600 dark:text-sky-400 font-extrabold">{ph ? `+91 ${ph}` : 'No phone registered'}</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">GST: {sel.gstin || 'Unregistered'}</span>
+                  </div>
+                );
+              })()}
             </div>
 
             <div>

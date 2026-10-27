@@ -4,6 +4,18 @@ const store = require('../utils/inMemoryStore');
 const { round2 } = require('../utils/mathUtils');
 const { generatePartyLedger } = require('../utils/ledgerEngine');
 
+// Helper to normalize phone numbers to exactly 10 digits (removing +91, 0, or extra prefix)
+const format10DigitPhone = (raw) => {
+  if (!raw) return '';
+  let digits = String(raw).replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  return digits.slice(-10);
+};
+
 /**
  * @desc Get all parties for the authenticated user
  * @route GET /api/parties
@@ -71,12 +83,13 @@ const createParty = async (req, res) => {
     const openType = String(openingBalanceType || '').toUpperCase() === 'PAYABLE' ? 'PAYABLE' : 'RECEIVABLE';
     const openDate = openingBalanceDate ? new Date(openingBalanceDate) : new Date();
     const initialBalance = openType === 'PAYABLE' ? -openBal : openBal;
+    const cleanPhone = format10DigitPhone(phone);
 
     const partyPayload = {
       user: userId,
       name: name.trim(),
       type: type || 'CUSTOMER',
-      phone: phone ? phone.trim() : '',
+      phone: cleanPhone,
       email: email ? email.trim().toLowerCase() : '',
       address: address ? address.trim() : '',
       gstin: gstin ? gstin.trim().toUpperCase() : '',
@@ -146,7 +159,7 @@ const bulkImportParties = async (req, res) => {
       const partyName = String(rawName).trim();
       const rawType = String(row.type || 'CUSTOMER').toUpperCase();
       const partyType = ['CUSTOMER', 'VENDOR', 'BOTH'].includes(rawType) ? rawType : 'CUSTOMER';
-      const phone = row.phone ? String(row.phone).trim() : '';
+      const phone = format10DigitPhone(row.phone);
       const email = row.email ? String(row.email).trim().toLowerCase() : '';
       const address = row.address ? String(row.address).trim() : '';
       const gstin = row.gstin ? String(row.gstin).trim().toUpperCase() : '';
