@@ -340,7 +340,7 @@ const getPartyById = async (req, res) => {
 const getPartyLedger = async (req, res) => {
   try {
     const { id } = req.params;
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate } = req.query || {};
 
     const ledgerData = await generatePartyLedger(id, startDate, endDate, req.userFilter);
     return res.json({ success: true, data: ledgerData });

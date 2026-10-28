@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const PaymentTransaction = require('../models/PaymentTransaction');
+const Transaction = require('../models/Transaction');
 const Party = require('../models/Party');
 const store = require('./inMemoryStore');
 const { round2 } = require('./mathUtils');
@@ -12,6 +13,7 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null, us
   let party = null;
   let rawOrders = [];
   let rawPayments = [];
+  let rawTransactions = [];
 
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
 
@@ -20,6 +22,7 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null, us
     if (party) {
       rawOrders = await Order.find({ party: partyId, ...userFilter }).sort({ orderDate: 1 }).lean();
       rawPayments = await PaymentTransaction.find({ party: partyId, ...userFilter }).sort({ paymentDate: 1 }).lean();
+      rawTransactions = await Transaction.find({ partyId: party._id, ...userFilter }).sort({ date: 1 }).lean();
     }
   }
 
@@ -27,6 +30,7 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null, us
     party = store.parties.find((p) => p._id === partyId || p._id?.toString() === partyId);
     rawOrders = store.orders.filter((o) => (o.party?._id || o.party)?.toString() === partyId);
     rawPayments = store.payments.filter((p) => (p.party?._id || p.party)?.toString() === partyId);
+    rawTransactions = (store.transactions || []).filter((t) => (t.partyId?._id || t.partyId)?.toString() === partyId);
   }
 
   if (!party) {
@@ -93,6 +97,29 @@ const generatePartyLedger = async (partyId, startDate = null, endDate = null, us
       allocations: pay.allocations || [],
       notes: pay.notes ? `${pay.paymentMode} (${pay.referenceNo || 'Direct'}) - ${pay.notes}` : `${pay.paymentMode} (${pay.referenceNo || 'Direct'})`,
     });
+  });
+
+  // Include ledger Transaction entries (historical bills & bahi-khata receipts)
+  const existingRefs = new Set(rawEvents.map((e) => e.refNo));
+  rawTransactions.forEach((tx) => {
+    const refNo = tx.referenceId || `TX-${tx._id}`;
+    if (!existingRefs.has(refNo)) {
+      existingRefs.add(refNo);
+      rawEvents.push({
+        id: tx._id?.toString(),
+        date: new Date(tx.date || tx.createdAt),
+        entryDate: new Date(tx.createdAt || tx.date),
+        type: tx.type === 'INVOICE' ? 'DISPATCH' : tx.type === 'PAYMENT_RECEIVED' ? 'PAYMENT' : tx.type,
+        refNo: refNo,
+        debit: round2(tx.debit || 0),
+        credit: round2(tx.credit || 0),
+        paymentStatus: tx.credit > 0 ? 'RECONCILED' : 'BILLED',
+        paidAmount: round2(tx.credit || 0),
+        balanceDue: round2(tx.debit || 0),
+        notes: tx.notes || `${tx.type} entry`,
+        items: [],
+      });
+    }
   });
 
   // Sort chronologically by Payment Date / Value Date with Opening Balance first
