@@ -27,6 +27,7 @@ import {
 import * as XLSX from 'xlsx';
 import { partyService, orderService, inventoryService, migrationService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
+import HistoricalBillsMigrationGrid from './HistoricalBillsMigrationGrid';
 
 const MODULES = [
   {
@@ -75,7 +76,8 @@ const DataMigrationModal = ({
   onSuccess,
 }) => {
   const [activeModule, setActiveModule] = useState(initialModule);
-  const [inputMode, setInputMode] = useState('file'); // 'file' or 'manual'
+  const [inputMode, setInputMode] = useState(initialModule === 'orders' ? 'itemized' : 'file'); // 'itemized', 'file' or 'manual'
+  const [partiesList, setPartiesList] = useState(existingParties || []);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [fileName, setFileName] = useState('');
@@ -90,12 +92,32 @@ const DataMigrationModal = ({
   useEffect(() => {
     if (initialModule) {
       setActiveModule(initialModule);
+      if (initialModule === 'orders') {
+        setInputMode('itemized');
+      }
     }
   }, [initialModule]);
+
+  useEffect(() => {
+    if (existingParties && existingParties.length > 0) {
+      setPartiesList(existingParties);
+    } else {
+      partyService.getParties().then((res) => {
+        if (res.data?.parties) {
+          setPartiesList(res.data.parties);
+        }
+      }).catch(() => {});
+    }
+  }, [existingParties]);
 
   // Reset module rows on module switch
   const handleSwitchModule = (modId) => {
     setActiveModule(modId);
+    if (modId === 'orders') {
+      setInputMode('itemized');
+    } else if (inputMode === 'itemized') {
+      setInputMode('file');
+    }
     setFileName('');
     setParsedRows([]);
     setErrorMsg('');
@@ -1026,6 +1048,19 @@ const DataMigrationModal = ({
           <div className="flex items-center space-x-2">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Entry Method:</span>
             <div className="bg-slate-200/80 dark:bg-slate-800 p-0.5 rounded-xl flex items-center text-xs font-bold">
+              {activeModule === 'orders' && (
+                <button
+                  onClick={() => setInputMode('itemized')}
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+                    inputMode === 'itemized'
+                      ? 'bg-emerald-600 text-white shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Itemized Register (Bags, Wt, Rate)</span>
+                </button>
+              )}
               <button
                 onClick={() => setInputMode('file')}
                 className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
@@ -1049,7 +1084,7 @@ const DataMigrationModal = ({
                 }`}
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Manual Grid / Quick Entry</span>
+                <span>Manual Summary Grid</span>
               </button>
             </div>
           </div>
@@ -1107,6 +1142,16 @@ const DataMigrationModal = ({
             </div>
           )}
 
+          {/* Active Itemized Register Mode for Historical Bills & Orders */}
+          {activeModule === 'orders' && inputMode === 'itemized' && (
+            <HistoricalBillsMigrationGrid
+              parties={partiesList}
+              onSuccess={() => {
+                onSuccess && onSuccess();
+              }}
+            />
+          )}
+
           {/* Mode 1: File Upload Drag & Drop */}
           {inputMode === 'file' && parsedRows.length === 0 && (
             <div
@@ -1148,7 +1193,7 @@ const DataMigrationModal = ({
           )}
 
           {/* Mode 2 or Parsed Rows Table Preview */}
-          {(parsedRows.length > 0 || inputMode === 'manual') && (
+          {inputMode !== 'itemized' && (parsedRows.length > 0 || inputMode === 'manual') && (
             <div className="space-y-4">
               {/* Row Stats & Search Actions */}
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1579,45 +1624,47 @@ const DataMigrationModal = ({
         </div>
 
         {/* Modal Footer & Submit Button */}
-        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
-            <Info className="w-4 h-4 text-indigo-500 shrink-0" />
-            <span>
-              {activeModule === 'parties' && 'Opening balances will be initialized in party accounts and shown in their passbook ledger.'}
-              {activeModule === 'products' && 'Product catalog and opening warehouse stock will be updated.'}
-              {activeModule === 'rawMaterials' && 'Raw material inward batches will be linked with supplier records.'}
-              {activeModule === 'orders' && 'Historical sales bills and due balances will be registered in ledger passbooks.'}
-            </span>
-          </div>
+        {!(activeModule === 'orders' && inputMode === 'itemized') && (
+          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
+              <Info className="w-4 h-4 text-indigo-500 shrink-0" />
+              <span>
+                {activeModule === 'parties' && 'Opening balances will be initialized in party accounts and shown in their passbook ledger.'}
+                {activeModule === 'products' && 'Product catalog and opening warehouse stock will be updated.'}
+                {activeModule === 'rawMaterials' && 'Raw material inward batches will be linked with supplier records.'}
+                {activeModule === 'orders' && 'Historical sales bills and due balances will be registered in ledger passbooks.'}
+              </span>
+            </div>
 
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onClose}
-              disabled={loading}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
-            >
-              Cancel
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={onClose}
+                disabled={loading}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
 
-            <button
-              onClick={handleImportSubmit}
-              disabled={loading || validRowCount === 0}
-              className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white text-xs font-black px-6 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Migrating Data into ERP...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Import {validRowCount} Record(s) into Software (दर्ज करें)</span>
-                </>
-              )}
-            </button>
+              <button
+                onClick={handleImportSubmit}
+                disabled={loading || validRowCount === 0}
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white text-xs font-black px-6 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Migrating Data into ERP...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Import {validRowCount} Record(s) into Software (दर्ज करें)</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -50,6 +50,7 @@ export const partyService = {
   getLedgerSummary: (partyId) => api.get(`/parties/${partyId}/ledger-summary`),
   delete: (id) => api.delete(`/parties/${id}`),
   getLedger: (id, params) => api.get(`/parties/${id}/ledger`, { params }),
+  getHistoricalBills: (partyId) => api.get(`/parties/${partyId}/historical-bills`),
 };
 
 export const transactionService = {
@@ -90,6 +91,13 @@ export const migrationService = {
   importProducts: (data) => api.post('/migration/products', data),
   importRawMaterials: (data) => api.post('/migration/raw-materials', data),
   importOrders: (data) => api.post('/migration/orders', data),
+  importHistoricalBills: (data) => api.post('/migration/historical-bills', data),
+};
+
+export const historicalBillService = {
+  create: (data) => api.post('/historical-bills', data),
+  getByParty: (partyId) => api.get(`/parties/${partyId}/historical-bills`),
+  getPrintData: (billId) => api.get(`/historical-bills/${billId}/print-data`),
 };
 
 export default api;

@@ -14,10 +14,12 @@ import {
   CheckCircle2,
   Clock,
   Send,
+  Printer,
 } from 'lucide-react';
-import { partyService } from '../services/api';
+import { partyService, historicalBillService } from '../services/api';
 import { formatCurrency, exportLedgerToPDF, exportLedgerToExcel, shareLedgerOnWhatsApp } from '../utils/exportUtils';
 import { useAuth } from '../context/AuthContext';
+import HistoricalBillPrintModal from '../components/HistoricalBillPrintModal';
 
 const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpenPaymentModal, refreshTrigger }) => {
   const { user } = useAuth();
@@ -29,6 +31,44 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
   const [ledgerData, setLedgerData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  const handleOpenInvoice = async (row) => {
+    try {
+      const res = await historicalBillService.getPrintData(row.refNo);
+      if (res.data?.success && res.data.data) {
+        setSelectedInvoice(res.data.data);
+        setIsPrintModalOpen(true);
+        return;
+      }
+    } catch (e) {
+      // Fallback: construct printable invoice from ledger row
+      const fallback = {
+        billNumber: row.refNo,
+        date: row.date,
+        party: ledgerData?.party,
+        items: [
+          {
+            srNo: 1,
+            description: row.notes || 'Goods Dispatch & Supplies',
+            bags: 0,
+            qtyPerBag: 0,
+            totalWeight: 1,
+            rate: row.debit,
+            amount: row.debit,
+          },
+        ],
+        subTotal: row.debit,
+        paymentReceived: row.credit || 0,
+        balanceDue: row.remainingBalance,
+        paymentStatus: row.paymentStatus || (row.remainingBalance <= 0 ? 'PAID' : 'UNPAID'),
+        notes: row.notes,
+      };
+      setSelectedInvoice(fallback);
+      setIsPrintModalOpen(true);
+    }
+  };
 
   useEffect(() => {
     if (initialPartyId) {
@@ -387,7 +427,19 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                           </td>
 
                           <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                            {row.refNo}
+                            <div className="flex items-center space-x-2">
+                              <span>{row.refNo}</span>
+                              {(isDispatch || row.debit > 0 || row.refNo?.startsWith('HB-') || row.refNo?.startsWith('BILL-') || row.refNo?.startsWith('HIST-')) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenInvoice(row)}
+                                  className="p-1 rounded-md bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 transition"
+                                  title="View & Print Tax Invoice"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </td>
 
                           <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
@@ -441,6 +493,16 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
           </div>
         </>
       )}
+
+      {/* Historical Bill / Dispatch Printable Tax Invoice Modal */}
+      <HistoricalBillPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => {
+          setIsPrintModalOpen(false);
+          setSelectedInvoice(null);
+        }}
+        billData={selectedInvoice}
+      />
     </div>
   );
 };

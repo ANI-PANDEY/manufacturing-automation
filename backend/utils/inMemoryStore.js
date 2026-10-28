@@ -219,6 +219,7 @@ class InMemoryStore {
     ];
 
     this.transactions = [];
+    this.historicalBills = [];
 
     // Initialize in-memory users array
     const crypto = require('crypto');
