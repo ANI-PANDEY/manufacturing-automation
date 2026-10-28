@@ -43,6 +43,7 @@ export const authService = {
 
 export const partyService = {
   getAll: (params) => api.get('/parties', { params }),
+  getParties: (params) => api.get('/parties', { params }),
   getById: (id) => api.get(`/parties/${id}`),
   create: (data) => api.post('/parties', data),
   bulkImport: (data) => api.post('/parties/bulk-import', data),

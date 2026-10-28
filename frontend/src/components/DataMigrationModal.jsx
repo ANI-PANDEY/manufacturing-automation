@@ -102,11 +102,16 @@ const DataMigrationModal = ({
     if (existingParties && existingParties.length > 0) {
       setPartiesList(existingParties);
     } else {
-      partyService.getParties().then((res) => {
-        if (res.data?.parties) {
-          setPartiesList(res.data.parties);
-        }
-      }).catch(() => {});
+      const fetchFn = partyService.getAll || partyService.getParties;
+      if (typeof fetchFn === 'function') {
+        fetchFn()
+          .then((res) => {
+            if (res.data?.parties) {
+              setPartiesList(res.data.parties);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [existingParties]);
 
