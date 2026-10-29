@@ -62,10 +62,10 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  // Live total calculation
-  const subtotal = items.reduce((acc, curr) => acc + (Number(curr.quantity) || 0) * (Number(curr.unitPrice) || 0), 0);
-  const taxAmount = (subtotal * Number(taxRate)) / 100;
-  const totalAmount = subtotal + taxAmount;
+  // Live total calculation with float precision safety
+  const subtotal = Math.round((items.reduce((acc, curr) => acc + (Number(curr.quantity) || 0) * (Number(curr.unitPrice) || 0), 0) + Number.EPSILON) * 100) / 100;
+  const taxAmount = Math.round(((subtotal * (Number(taxRate) || 0)) / 100 + Number.EPSILON) * 100) / 100;
+  const totalAmount = Math.round((subtotal + taxAmount + Number.EPSILON) * 100) / 100;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,7 +76,7 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
       return;
     }
 
-    const invalidItem = items.find((i) => !i.productId || i.quantity <= 0);
+    const invalidItem = items.find((i) => !i.productId || Number(i.quantity) <= 0);
     if (invalidItem) {
       setError('Please select a valid product and quantity (> 0) for all rows');
       return;
@@ -87,12 +87,12 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
       const payload = {
         partyId,
         orderDate,
-        taxRate: Number(taxRate),
+        taxRate: Number(taxRate) || 0,
         dispatchNotes,
         items: items.map((i) => ({
           productId: i.productId,
-          quantity: Number(i.quantity),
-          unitPrice: Number(i.unitPrice),
+          quantity: Math.round((Number(i.quantity) + Number.EPSILON) * 10000) / 10000,
+          unitPrice: Math.round((Number(i.unitPrice) + Number.EPSILON) * 100) / 100,
         })),
       };
 
@@ -223,7 +223,8 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
                   <div className="w-24">
                     <input
                       type="number"
-                      min="1"
+                      min="0.0001"
+                      step="any"
                       placeholder="Qty"
                       value={item.quantity}
                       onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
@@ -235,7 +236,8 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
                   <div className="w-28">
                     <input
                       type="number"
-                      step="0.01"
+                      step="any"
+                      min="0"
                       placeholder="Rate ₹"
                       value={item.unitPrice}
                       onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
@@ -245,7 +247,7 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
                   </div>
 
                   <div className="w-28 text-right font-black text-xs text-slate-900 dark:text-white pr-2 font-mono">
-                    {formatCurrency((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))}
+                    {formatCurrency(Math.round(((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) + Number.EPSILON) * 100) / 100)}
                   </div>
 
                   <button
@@ -272,6 +274,8 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
                 <span>GST Tax Rate (%)</span>
                 <input
                   type="number"
+                  step="any"
+                  min="0"
                   value={taxRate}
                   onChange={(e) => setTaxRate(e.target.value)}
                   className="w-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-lg px-2 py-0.5 font-mono"

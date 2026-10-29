@@ -57,7 +57,13 @@ const createOrder = async (req, res) => {
         return res.status(404).json({ success: false, message: `Product not found: ${item.productId}` });
       }
 
-      const reqQty = Number(item.quantity) || 0;
+      const reqQty = Math.round((Number(item.quantity) + Number.EPSILON) * 10000) / 10000;
+      if (reqQty <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Quantity must be greater than 0 for item '${product.productName}'`,
+        });
+      }
       if (product.stockQuantity < reqQty) {
         return res.status(400).json({
           success: false,
@@ -65,13 +71,13 @@ const createOrder = async (req, res) => {
         });
       }
 
-      // Deduct stock
-      product.stockQuantity -= reqQty;
+      // Deduct stock safely with float precision
+      product.stockQuantity = Math.round((product.stockQuantity - reqQty + Number.EPSILON) * 10000) / 10000;
       if (isDbConnected && typeof product.save === 'function') {
         await product.save();
       }
 
-      const itemRate = round2(item.unitPrice || product.unitPrice);
+      const itemRate = round2(Number(item.unitPrice !== undefined ? item.unitPrice : product.unitPrice) || 0);
       const itemSubtotal = round2(reqQty * itemRate);
       subtotalAmount = round2(subtotalAmount + itemSubtotal);
 
@@ -289,13 +295,13 @@ const deleteOrder = async (req, res) => {
         if (isDbConnected && mongoose.Types.ObjectId.isValid(prodId)) {
           const product = await Product.findOne({ _id: prodId, ...userFilter });
           if (product) {
-            product.stockQuantity += Number(item.quantity) || 0;
+            product.stockQuantity = Math.round(((product.stockQuantity || 0) + (Number(item.quantity) || 0) + Number.EPSILON) * 10000) / 10000;
             await product.save();
           }
         }
         const memProd = store.products.find((p) => (p._id === prodId || p._id?.toString() === prodId?.toString()));
         if (memProd) {
-          memProd.stockQuantity += Number(item.quantity) || 0;
+          memProd.stockQuantity = Math.round(((memProd.stockQuantity || 0) + (Number(item.quantity) || 0) + Number.EPSILON) * 10000) / 10000;
         }
       }
     }

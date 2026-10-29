@@ -1380,6 +1380,7 @@ const DataMigrationModal = ({
                               <td className="py-1.5 px-2">
                                 <input
                                   type="number"
+                                  step="any"
                                   value={r.openingBalance !== undefined ? r.openingBalance : ''}
                                   onChange={(e) => handleUpdateRowField(r.id, 'openingBalance', Number(e.target.value))}
                                   placeholder="0.00"
@@ -1441,6 +1442,7 @@ const DataMigrationModal = ({
                               <td className="py-1.5 px-2">
                                 <input
                                   type="number"
+                                  step="any"
                                   value={r.unitPrice !== undefined ? r.unitPrice : ''}
                                   onChange={(e) => handleUpdateRowField(r.id, 'unitPrice', Number(e.target.value))}
                                   placeholder="Rate"
@@ -1450,6 +1452,7 @@ const DataMigrationModal = ({
                               <td className="py-1.5 px-2">
                                 <input
                                   type="number"
+                                  step="any"
                                   value={r.stockQuantity !== undefined ? r.stockQuantity : ''}
                                   onChange={(e) => handleUpdateRowField(r.id, 'stockQuantity', Number(e.target.value))}
                                   placeholder="Stock"
@@ -1519,6 +1522,7 @@ const DataMigrationModal = ({
                               <td className="py-1.5 px-2">
                                 <input
                                   type="number"
+                                  step="any"
                                   value={r.quantityInStock !== undefined ? r.quantityInStock : ''}
                                   onChange={(e) => handleUpdateRowField(r.id, 'quantityInStock', Number(e.target.value))}
                                   placeholder="Qty"
@@ -1537,6 +1541,7 @@ const DataMigrationModal = ({
                               <td className="py-1.5 px-2">
                                 <input
                                   type="number"
+                                  step="any"
                                   value={r.unitPrice !== undefined ? r.unitPrice : ''}
                                   onChange={(e) => handleUpdateRowField(r.id, 'unitPrice', Number(e.target.value))}
                                   placeholder="Cost"
@@ -1578,6 +1583,7 @@ const DataMigrationModal = ({
                               <td className="py-1.5 px-2">
                                 <input
                                   type="number"
+                                  step="any"
                                   value={r.totalAmount !== undefined ? r.totalAmount : ''}
                                   onChange={(e) => handleUpdateRowField(r.id, 'totalAmount', Number(e.target.value))}
                                   placeholder="Total"
@@ -1587,6 +1593,7 @@ const DataMigrationModal = ({
                               <td className="py-1.5 px-2">
                                 <input
                                   type="number"
+                                  step="any"
                                   value={r.paidAmount !== undefined ? r.paidAmount : ''}
                                   onChange={(e) => handleUpdateRowField(r.id, 'paidAmount', Number(e.target.value))}
                                   placeholder="Paid"

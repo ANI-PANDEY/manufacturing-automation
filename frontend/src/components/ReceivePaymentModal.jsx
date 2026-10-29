@@ -226,7 +226,8 @@ const ReceivePaymentModal = ({ isOpen, onClose, parties = [], selectedPartyId = 
               </label>
               <input
                 type="number"
-                step="0.01"
+                step="any"
+                min="0.01"
                 placeholder="e.g. 50000"
                 value={amountPaid}
                 onChange={(e) => setAmountPaid(e.target.value)}

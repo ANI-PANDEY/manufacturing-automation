@@ -19,6 +19,7 @@ const {
   getHistoricalBillPrintData,
 } = require('./controllers/historicalBillController');
 const { getPartyLedger, getPartyLedgerSummary } = require('./controllers/partyController');
+const { createOrder } = require('./controllers/orderController');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -296,6 +297,67 @@ async function runTestSuite() {
   console.log(`  Summary Remaining Due:  ₹${summary.remainingBalance}`);
   assert(summary.remainingBalance === 110500, 'Ledger summary remaining balance matches ₹110,500');
   assert(summary.status === 'PARTIAL', 'Ledger summary status is PARTIAL');
+
+  // 👉 Section 9: Decimal Quantity Order Placement & Dispatch Invoicing
+  console.log('\n👉 Section 9: Decimal Quantity & Rate Order Placement (Dispatch & Invoicing)');
+  const testProductId = 'prod_decimal_test_01';
+  store.products.push({
+    _id: testProductId,
+    user: testUserId,
+    productName: 'Galvanized Steel Coil 0.8mm',
+    sku: 'GSC-08MM',
+    stockQuantity: 15.75, // 15.75 Metric Tons in stock
+    unit: 'Tons',
+    unitPrice: 54000.50,
+  });
+
+  const decimalOrderReq = createMockReq({
+    partyId: testPartyId,
+    orderDate: '2026-10-29',
+    taxRate: 18,
+    dispatchNotes: 'Delivered 2.25 Tons via Flatbed Truck MH-04-1234',
+    items: [
+      {
+        productId: testProductId,
+        quantity: 2.25, // Decimal quantity
+        unitPrice: 54000.50, // Decimal rate
+      },
+    ],
+  });
+  const decimalOrderRes = createMockRes();
+  await createOrder(decimalOrderReq, decimalOrderRes);
+
+  assert(decimalOrderRes.statusCode === 201, 'POST /api/orders responded with 201 Created for decimal quantity');
+  assert(decimalOrderRes.jsonPayload.success === true, 'Decimal dispatch order created successfully');
+  const createdOrder = decimalOrderRes.jsonPayload.order;
+  assert(createdOrder.items[0].quantity === 2.25, 'Order item quantity preserved as 2.25 decimal');
+  assert(createdOrder.items[0].subtotal === 121501.13, 'Line subtotal correctly computed as 2.25 * 54000.50 = ₹121,501.13');
+  assert(createdOrder.subtotalAmount === 121501.13, 'Subtotal is ₹121,501.13');
+  assert(createdOrder.taxAmount === 21870.20, '18% GST tax is ₹21,870.20');
+  assert(createdOrder.totalAmount === 143371.33, 'Total bill amount is ₹143,371.33');
+
+  // Verify stock deduction accurately with float precision: 15.75 - 2.25 = 13.5
+  const updatedProduct = store.products.find((p) => p._id === testProductId);
+  assert(updatedProduct.stockQuantity === 13.5, `Product stock deducted accurately: 15.75 - 2.25 = ${updatedProduct.stockQuantity}`);
+
+  // Test smaller fractional order (e.g. 0.5 Tons)
+  const fractionalOrderReq = createMockReq({
+    partyId: testPartyId,
+    orderDate: '2026-10-29',
+    taxRate: 5,
+    dispatchNotes: 'Sample delivery 0.5 Tons',
+    items: [
+      {
+        productId: testProductId,
+        quantity: 0.5,
+        unitPrice: 50000,
+      },
+    ],
+  });
+  const fractionalOrderRes = createMockRes();
+  await createOrder(fractionalOrderReq, fractionalOrderRes);
+  assert(fractionalOrderRes.statusCode === 201, 'Sub-unit decimal order (0.5 qty) accepted with 201 Created');
+  assert(updatedProduct.stockQuantity === 13.0, `Stock reduced cleanly to 13.0 Tons`);
 
   console.log('\n====================================================');
   console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY!`);

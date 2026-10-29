@@ -648,6 +648,8 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
                     </label>
                     <input
                       type="number"
+                      step="any"
+                      min="0"
                       value={openingBalance}
                       onChange={(e) => setOpeningBalance(e.target.value)}
                       placeholder="0.00"

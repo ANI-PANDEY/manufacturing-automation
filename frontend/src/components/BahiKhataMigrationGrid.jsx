@@ -306,7 +306,7 @@ const BahiKhataMigrationGrid = ({ onSuccess, onCancel }) => {
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="any"
                     placeholder="0.00"
                     value={row.openingBalance}
                     onChange={(e) => handleUpdateField(row.id, 'openingBalance', e.target.value)}

@@ -499,6 +499,7 @@ const HistoricalBillsMigrationGrid = ({
                   <input
                     type="number"
                     min="0"
+                    step="any"
                     placeholder="0"
                     value={row.bags !== undefined ? row.bags : ''}
                     onChange={(e) => handleUpdateRow(row.id, 'bags', e.target.value)}
@@ -511,7 +512,7 @@ const HistoricalBillsMigrationGrid = ({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="any"
                     placeholder="0 kg"
                     value={row.qtyPerBag !== undefined ? row.qtyPerBag : ''}
                     onChange={(e) => handleUpdateRow(row.id, 'qtyPerBag', e.target.value)}
@@ -524,7 +525,7 @@ const HistoricalBillsMigrationGrid = ({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="any"
                     placeholder="Total kg"
                     value={row.totalWeight !== undefined ? row.totalWeight : ''}
                     onChange={(e) => handleUpdateRow(row.id, 'totalWeight', e.target.value)}
@@ -537,7 +538,7 @@ const HistoricalBillsMigrationGrid = ({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="any"
                     placeholder="₹ Rate"
                     value={row.rate !== undefined ? row.rate : ''}
                     onChange={(e) => handleUpdateRow(row.id, 'rate', e.target.value)}
@@ -555,7 +556,7 @@ const HistoricalBillsMigrationGrid = ({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="any"
                     placeholder="0"
                     value={row.paymentReceived !== undefined ? row.paymentReceived : ''}
                     onChange={(e) => handleUpdateRow(row.id, 'paymentReceived', e.target.value)}
