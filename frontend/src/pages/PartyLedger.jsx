@@ -16,8 +16,9 @@ import {
   Send,
   Printer,
   Pencil,
+  Trash2,
 } from 'lucide-react';
-import { partyService, historicalBillService } from '../services/api';
+import { partyService, historicalBillService, paymentService } from '../services/api';
 import { formatCurrency, exportLedgerToPDF, exportLedgerToExcel, shareLedgerOnWhatsApp } from '../utils/exportUtils';
 import { useAuth } from '../context/AuthContext';
 import HistoricalBillPrintModal from '../components/HistoricalBillPrintModal';
@@ -69,6 +70,32 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
       notes: row.notes,
     });
     setIsEditBillModalOpen(true);
+  };
+
+  const handleDeleteRow = async (row) => {
+    const isPayment = row.type === 'PAYMENT' || row.credit > 0 || row.refNo?.startsWith('RCP-') || row.refNo?.startsWith('TX-');
+    const ref = row.refNo || row.id || row._id;
+    const desc = isPayment ? `Payment Receipt #${ref}` : `Bill / Invoice #${ref}`;
+    const amt = row.credit > 0 ? row.credit : row.debit;
+
+    if (!window.confirm(`Kya aap sach mein ${desc} ko DELETE karna chahte hain?\n\nAmount: ${formatCurrency(amt || 0)}\nYeh party ke balance ko turant reverse/restore kar dega.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      if (isPayment) {
+        await paymentService.delete(ref);
+      } else {
+        await historicalBillService.delete(ref);
+      }
+      await fetchLedger();
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert(err.response?.data?.message || err.message || 'Failed to delete record');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenInvoice = async (row) => {
@@ -426,7 +453,9 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                     <th className="py-3.5 px-4 text-right">Remaining Balance (₹)</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4">Mode / Notes</th>
-                    <th className="py-3.5 px-4 text-center">Actions</th>
+                    <th className="py-3.5 px-4 text-center sticky right-0 bg-slate-100 dark:bg-slate-800 font-black z-10 border-l border-slate-200 dark:border-slate-700 shadow-sm">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
@@ -515,8 +544,8 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                             {row.notes}
                           </td>
 
-                          {/* Actions Column */}
-                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          {/* Actions Column (Sticky on right for instant accessibility) */}
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap sticky right-0 bg-white dark:bg-slate-900 z-10 border-l border-slate-100 dark:border-slate-800 shadow-sm">
                             <div className="flex items-center justify-center space-x-1.5">
                               {isHistoricalOrInvoice && (
                                 <>
@@ -531,25 +560,43 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                                   <button
                                     type="button"
                                     onClick={() => handleEditBill(row)}
-                                    className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-bold text-[11px] transition border border-amber-300/40"
-                                    title="Edit Historical Bill / Past Invoice (पुराने बिल में सुधार करें)"
+                                    className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] transition shadow-sm"
+                                    title="Edit Bill / Dispatch (बिल में सुधार करें)"
                                   >
-                                    <Pencil className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                    <span>Edit Bill</span>
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteRow(row)}
+                                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 transition border border-rose-200 dark:border-rose-900/50"
+                                    title="Delete Bill (बिल को हटाएं)"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </>
                               )}
 
                               {isPayment && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditPayment(row)}
-                                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] transition border border-emerald-300/40"
-                                  title="Edit Payment Receipt (प्राप्त भुगतान में सुधार करें)"
-                                >
-                                  <Pencil className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                  <span>Edit Pay</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditPayment(row)}
+                                    className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition shadow-sm"
+                                    title="Edit Payment Receipt (भुगतान में सुधार करें)"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteRow(row)}
+                                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 transition border border-rose-200 dark:border-rose-900/50"
+                                    title="Delete Payment (भुगतान को हटाएं)"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>

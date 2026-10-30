@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const HistoricalBill = require('../models/HistoricalBill');
+const Order = require('../models/Order');
 const Transaction = require('../models/Transaction');
 const Party = require('../models/Party');
 const store = require('../utils/inMemoryStore');
@@ -425,6 +426,39 @@ const getHistoricalBillById = async (req, res) => {
       }
     }
 
+    if (!bill && isDbConnected) {
+      const order = await Order.findOne({
+        $or: [
+          { orderNumber: billId },
+          ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+        ],
+        ...userFilter,
+      }).populate('party').lean();
+
+      if (order) {
+        bill = {
+          _id: order._id,
+          billNumber: order.orderNumber,
+          billDate: order.orderDate || order.createdAt,
+          partyId: order.party,
+          partyName: order.party?.name || '',
+          subTotal: order.totalAmount || order.subtotalAmount || 0,
+          paymentReceived: 0,
+          balanceDue: order.totalAmount || 0,
+          notes: order.dispatchNotes || `Order #${order.orderNumber}`,
+          items: (order.items || []).map((it, idx) => ({
+            id: it._id || idx + 1,
+            description: it.product?.name || it.productName || 'Goods Invoiced',
+            bags: 0,
+            qtyPerBag: 0,
+            totalWeight: it.quantity || 1,
+            rate: it.unitPrice || 0,
+            amount: it.totalPrice || round2((it.quantity || 1) * (it.unitPrice || 0)),
+          })),
+        };
+      }
+    }
+
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Historical bill not found' });
     }
@@ -459,6 +493,43 @@ const updateHistoricalBill = async (req, res) => {
     let memBill = (store.historicalBills || []).find(
       (b) => b._id === billId || b.billNumber === billId
     );
+
+    if (!bill && !memBill && isDbConnected) {
+      const order = await Order.findOne({
+        $or: [
+          { orderNumber: billId },
+          ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+        ],
+        ...userFilter,
+      });
+      if (order) {
+        const oldTotal = round2(order.totalAmount || 0);
+        const newTotal = req.body.subTotal !== undefined && !isNaN(Number(req.body.subTotal))
+          ? round2(Number(req.body.subTotal))
+          : oldTotal;
+        const delta = round2(newTotal - oldTotal);
+        order.totalAmount = newTotal;
+        if (req.body.notes !== undefined) order.dispatchNotes = req.body.notes;
+        if (req.body.date) order.orderDate = new Date(req.body.date);
+        await order.save();
+        if (delta !== 0) {
+          const party = await Party.findOne({ _id: order.party, ...userFilter });
+          if (party) {
+            party.currentBalance = round2((party.currentBalance || 0) + delta);
+            await party.save();
+          }
+          await Transaction.updateMany(
+            { referenceId: order.orderNumber, type: 'INVOICE', ...userFilter },
+            { debit: newTotal }
+          );
+        }
+        return res.json({
+          success: true,
+          message: `Invoice #${order.orderNumber} updated successfully`,
+          bill: order,
+        });
+      }
+    }
 
     if (!bill && !memBill) {
       return res.status(404).json({ success: false, message: 'Historical bill not found to edit' });
@@ -734,6 +805,36 @@ const deleteHistoricalBill = async (req, res) => {
     let memBill = (store.historicalBills || []).find(
       (b) => b._id === billId || b.billNumber === billId
     );
+
+    if (!bill && !memBill && isDbConnected) {
+      const order = await Order.findOne({
+        $or: [
+          { orderNumber: billId },
+          ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+        ],
+        ...userFilter,
+      });
+      if (order) {
+        const partyId = order.party;
+        const totalAmount = round2(order.totalAmount || 0);
+        let updatedBalance = undefined;
+        if (partyId) {
+          const party = await Party.findOne({ _id: partyId, ...userFilter });
+          if (party) {
+            party.currentBalance = round2((party.currentBalance || 0) - totalAmount);
+            await party.save();
+            updatedBalance = party.currentBalance;
+          }
+        }
+        await Transaction.deleteMany({ referenceId: order.orderNumber, ...userFilter });
+        await Order.deleteOne({ _id: order._id });
+        return res.json({
+          success: true,
+          message: `Order invoice #${order.orderNumber} deleted and ledger restored successfully`,
+          partyBalance: updatedBalance,
+        });
+      }
+    }
 
     if (!bill && !memBill) {
       return res.status(404).json({ success: false, message: 'Historical bill not found' });

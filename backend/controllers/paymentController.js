@@ -356,9 +356,12 @@ const getPaymentById = async (req, res) => {
       if (!payment) {
         payment = await PaymentTransaction.findOne({ receiptNumber: id, ...userFilter }).populate('party').lean();
       }
-      if (!payment && mongoose.Types.ObjectId.isValid(id)) {
-        // Fallback to Transaction model
-        const tx = await Transaction.findOne({ _id: id, ...userFilter }).populate('partyId').lean();
+      if (!payment) {
+        // Fallback to Transaction model by _id or referenceId
+        const txQuery = mongoose.Types.ObjectId.isValid(id)
+          ? { $or: [{ _id: id }, { referenceId: id }] }
+          : { referenceId: id };
+        const tx = await Transaction.findOne({ ...txQuery, ...userFilter }).populate('partyId').lean();
         if (tx) {
           payment = {
             _id: tx._id,
@@ -465,8 +468,11 @@ const updatePayment = async (req, res) => {
           ...userFilter,
         });
       }
-      if (!paymentDoc && mongoose.Types.ObjectId.isValid(id)) {
-        txDoc = await Transaction.findOne({ _id: id, ...userFilter });
+      if (!paymentDoc) {
+        const txQuery = mongoose.Types.ObjectId.isValid(id)
+          ? { $or: [{ _id: id }, { referenceId: id }] }
+          : { referenceId: id };
+        txDoc = await Transaction.findOne({ ...txQuery, ...userFilter });
       }
     }
 
@@ -613,8 +619,11 @@ const deletePayment = async (req, res) => {
           ...userFilter,
         });
       }
-      if (!paymentDoc && mongoose.Types.ObjectId.isValid(id)) {
-        txDoc = await Transaction.findOne({ _id: id, ...userFilter });
+      if (!paymentDoc) {
+        const txQuery = mongoose.Types.ObjectId.isValid(id)
+          ? { $or: [{ _id: id }, { referenceId: id }] }
+          : { referenceId: id };
+        txDoc = await Transaction.findOne({ ...txQuery, ...userFilter });
       }
     }
 
