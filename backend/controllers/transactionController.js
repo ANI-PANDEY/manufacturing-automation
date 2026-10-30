@@ -224,7 +224,13 @@ const getPartyTransactions = async (req, res) => {
   }
 };
 
+const { updatePayment, deletePayment, getPaymentById } = require('./paymentController');
+
 module.exports = {
   receivePayment,
   getPartyTransactions,
+  updateTransaction: updatePayment,
+  deleteTransaction: deletePayment,
+  getTransactionById: getPaymentById,
 };
+

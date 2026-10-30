@@ -17,9 +17,18 @@ const {
   createHistoricalBills,
   getPartyHistoricalBills,
   getHistoricalBillPrintData,
+  getHistoricalBillById,
+  updateHistoricalBill,
+  deleteHistoricalBill,
 } = require('./controllers/historicalBillController');
 const { getPartyLedger, getPartyLedgerSummary } = require('./controllers/partyController');
 const { createOrder } = require('./controllers/orderController');
+const {
+  receivePayment,
+  getPaymentById,
+  updatePayment,
+  deletePayment,
+} = require('./controllers/paymentController');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -358,6 +367,113 @@ async function runTestSuite() {
   await createOrder(fractionalOrderReq, fractionalOrderRes);
   assert(fractionalOrderRes.statusCode === 201, 'Sub-unit decimal order (0.5 qty) accepted with 201 Created');
   assert(updatedProduct.stockQuantity === 13.0, `Stock reduced cleanly to 13.0 Tons`);
+
+  // ----------------------------------------------------
+  // TEST 10: Edit / Correction Options for Payments & Historical Bills
+  // ----------------------------------------------------
+  console.log('\n👉 Section 10: Edit & Correction Options for Payments and Past Bills');
+
+  // Test 10.1: Edit Historical Bill (Past Correction)
+  // Let's edit HB-TEST-001 (which was subTotal=42500, paymentReceived=20000, balanceDue=22500)
+  // Change rate from 85 to 100 (so 500 * 100 = 50000), paymentReceived from 20000 to 25000
+  // New subtotal: 50000, new paymentReceived: 25000, new balanceDue: 25000
+  // Old balanceDue was 22500 -> delta = +2500. Party balance should increase by 2500.
+  const partyBeforeBillEdit = store.parties.find((p) => p._id === testPartyId);
+  const balBeforeBillEdit = partyBeforeBillEdit.currentBalance;
+
+  const editBillReq = createMockReq({
+    billNumber: 'HB-TEST-001-MOD',
+    date: '2026-10-15',
+    items: [
+      {
+        description: 'Steel Cast Components 50mm (Grade A Updated)',
+        bags: 20,
+        qtyPerBag: 25,
+        totalWeight: 500,
+        rate: 100,
+        amount: 50000,
+      },
+    ],
+    subTotal: 50000,
+    paymentReceived: 25000,
+    notes: 'Corrected rates and recorded extra advance payment',
+  }, { billId: 'HB-TEST-001' });
+
+  const editBillRes = createMockRes();
+  await updateHistoricalBill(editBillReq, editBillRes);
+
+  assert(editBillRes.statusCode === 200, 'PUT /api/historical-bills/:billId responded with 200 OK');
+  assert(editBillRes.jsonPayload.success === true, 'Historical bill updated successfully');
+  assert(editBillRes.jsonPayload.bill.billNumber === 'HB-TEST-001-MOD', 'Bill number updated to HB-TEST-001-MOD');
+  assert(editBillRes.jsonPayload.bill.subTotal === 50000, 'Updated subtotal is ₹50,000');
+  assert(editBillRes.jsonPayload.bill.paymentReceived === 25000, 'Updated paymentReceived is ₹25,000');
+  assert(editBillRes.jsonPayload.bill.balanceDue === 25000, 'Updated balanceDue is ₹25,000');
+  assert(
+    partyBeforeBillEdit.currentBalance === round2(balBeforeBillEdit + 2500),
+    `Party balance updated accurately by delta (+₹2,500): ${partyBeforeBillEdit.currentBalance}`
+  );
+
+  // Verify getHistoricalBillById retrieves updated bill
+  const getBillReq = createMockReq({}, { billId: 'HB-TEST-001-MOD' });
+  const getBillRes = createMockRes();
+  await getHistoricalBillById(getBillReq, getBillRes);
+  assert(getBillRes.statusCode === 200, 'GET /api/historical-bills/:billId returned updated bill');
+  assert(getBillRes.jsonPayload.bill.items[0].rate === 100, 'Updated rate 100 retrieved successfully');
+
+  // Test 10.2: Receive Payment & Then Edit Received Payment
+  const balBeforePay = partyBeforeBillEdit.currentBalance;
+  const receivePayReq = createMockReq({
+    partyId: testPartyId,
+    amount: 15000,
+    paymentDate: '2026-10-20',
+    paymentMode: 'UPI',
+    referenceNo: 'UPI-TEST-999',
+    notes: 'Initial test payment',
+  });
+  const receivePayRes = createMockRes();
+  await receivePayment(receivePayReq, receivePayRes);
+  assert(receivePayRes.statusCode === 201, 'Payment received with 201 Created');
+  const createdPaymentId = receivePayRes.jsonPayload.transaction._id;
+  const balAfterPay = partyBeforeBillEdit.currentBalance;
+  assert(balAfterPay === round2(balBeforePay - 15000), `Party balance reduced by initial payment of ₹15,000`);
+
+  // Now user corrects the payment: actually paid ₹20,000 via BANK_TRANSFER with UTR
+  // Difference: newAmount (20000) - oldAmount (15000) = +5000.
+  // Party balance should decrease by another ₹5,000!
+  const editPayReq = createMockReq({
+    amountPaid: 20000,
+    paymentDate: '2026-10-20',
+    paymentMode: 'BANK_TRANSFER',
+    referenceNo: 'NEFT-CORRECTED-1234',
+    notes: 'Corrected payment amount and mode after bank statement audit',
+  }, { id: createdPaymentId });
+  const editPayRes = createMockRes();
+  await updatePayment(editPayReq, editPayRes);
+
+  assert(editPayRes.statusCode === 200, 'PUT /api/payments/:id responded with 200 OK');
+  assert(editPayRes.jsonPayload.success === true, 'Payment updated successfully');
+  assert(
+    partyBeforeBillEdit.currentBalance === round2(balBeforePay - 20000),
+    `Party balance reduced by full corrected ₹20,000: ${partyBeforeBillEdit.currentBalance}`
+  );
+
+  // Verify getPaymentById retrieves the updated payment
+  const getPayReq = createMockReq({}, { id: createdPaymentId });
+  const getPayRes = createMockRes();
+  await getPaymentById(getPayReq, getPayRes);
+  assert(getPayRes.statusCode === 200, 'GET /api/payments/:id returned updated payment');
+  assert(getPayRes.jsonPayload.payment.amountPaid === 20000, 'Payment amount verified as ₹20,000');
+  assert(getPayRes.jsonPayload.payment.paymentMode === 'BANK_TRANSFER', 'Payment mode verified as BANK_TRANSFER');
+
+  // Test 10.3: Delete Payment and verify party balance reverts back to original
+  const deletePayReq = createMockReq({}, { id: createdPaymentId });
+  const deletePayRes = createMockRes();
+  await deletePayment(deletePayReq, deletePayRes);
+  assert(deletePayRes.statusCode === 200, 'DELETE /api/payments/:id responded with 200 OK');
+  assert(
+    partyBeforeBillEdit.currentBalance === round2(balBeforePay),
+    `Party balance reverted by ₹20,000 back to balBeforePay: ${partyBeforeBillEdit.currentBalance}`
+  );
 
   console.log('\n====================================================');
   console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY!`);

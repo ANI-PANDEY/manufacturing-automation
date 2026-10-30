@@ -10,6 +10,7 @@ import {
   Sparkles,
   ClipboardPaste,
   Printer,
+  Pencil,
   Eye,
   ArrowRight,
   BookOpen,
@@ -19,6 +20,7 @@ import {
 import { migrationService, historicalBillService, partyService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
 import HistoricalBillPrintModal from './HistoricalBillPrintModal';
+import EditHistoricalBillModal from './EditHistoricalBillModal';
 
 /**
  * HistoricalBillsMigrationGrid
@@ -70,6 +72,10 @@ const HistoricalBillsMigrationGrid = ({
   // Print modal state
   const [previewBill, setPreviewBill] = useState(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Edit modal state
+  const [editingBill, setEditingBill] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Past saved bills history for current party
   const [partyBills, setPartyBills] = useState([]);
@@ -698,16 +704,32 @@ const HistoricalBillsMigrationGrid = ({
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setPreviewBill(b);
-                      setIsPrintModalOpen(true);
-                    }}
-                    className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 text-xs font-bold transition border border-indigo-200 dark:border-indigo-800/50"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Print</span>
-                  </button>
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingBill(b);
+                        setIsEditModalOpen(true);
+                      }}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-bold transition border border-amber-200 dark:border-amber-800/50"
+                      title="Edit Historical Bill (पुराने बिल में सुधार करें)"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewBill(b);
+                        setIsPrintModalOpen(true);
+                      }}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 text-xs font-bold transition border border-indigo-200 dark:border-indigo-800/50"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -721,6 +743,22 @@ const HistoricalBillsMigrationGrid = ({
           isOpen={isPrintModalOpen}
           onClose={() => setIsPrintModalOpen(false)}
           billData={previewBill}
+        />
+      )}
+
+      {/* Edit Historical Bill Modal */}
+      {isEditModalOpen && editingBill && (
+        <EditHistoricalBillModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingBill(null);
+          }}
+          billData={editingBill}
+          onSuccess={() => {
+            if (selectedPartyId) fetchPartyBillsHistory(selectedPartyId);
+            onSuccess && onSuccess();
+          }}
         />
       )}
     </div>

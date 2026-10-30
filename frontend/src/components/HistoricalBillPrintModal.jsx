@@ -15,12 +15,6 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../utils/exportUtils';
 import { useAuth } from '../context/AuthContext';
-
-/**
- * HistoricalBillPrintModal
- * Printable invoice view for migrated historical bills.
- * Contains party details, itemized table (Bags, Wt, Rate, Total), payment status, and balance due.
- */
 const HistoricalBillPrintModal = ({ isOpen, onClose, billData }) => {
   const { user } = useAuth();
   const printRef = useRef(null);

@@ -642,12 +642,14 @@ const getPartyLedgerSummary = async (req, res) => {
       const key = `${tx.type}_${tx.referenceId || tx._id}`;
       eventsMap.set(key, {
         id: tx._id?.toString(),
+        transactionId: tx._id?.toString(),
         date: new Date(tx.date || tx.createdAt),
         type: tx.type,
         debit: round2(tx.debit || 0),
         credit: round2(tx.credit || 0),
         paymentMode: tx.paymentMode || 'CASH',
         referenceId: tx.referenceId || '',
+        referenceType: tx.referenceType || '',
         notes: tx.notes || '',
       });
     });
@@ -766,12 +768,108 @@ const getPartyLedgerSummary = async (req, res) => {
   }
 };
 
+/**
+ * @desc Update party profile and opening balance
+ * @route PUT /api/parties/:id
+ */
+const updateParty = async (req, res) => {
+  const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+  const userFilter = req.userFilter || {};
+  const { id } = req.params;
+
+  try {
+    let party = null;
+    if (isDbConnected && mongoose.Types.ObjectId.isValid(id)) {
+      party = await Party.findOne({ _id: id, ...userFilter });
+    }
+    if (!party) {
+      party = store.parties.find(
+        (p) => (p._id || p.id)?.toString() === id?.toString()
+      );
+    }
+
+    if (!party) {
+      return res.status(404).json({ success: false, message: 'Party not found' });
+    }
+
+    const {
+      name,
+      type,
+      phone,
+      email,
+      address,
+      gstin,
+      creditLimit,
+      openingBalance,
+      openingBalanceType,
+    } = req.body;
+
+    if (name) party.name = name.trim();
+    if (type) party.type = type;
+    if (phone !== undefined) party.phone = phone.replace(/\D/g, '').slice(-10);
+    if (email !== undefined) party.email = email;
+    if (address !== undefined) party.address = address;
+    if (gstin !== undefined) party.gstin = gstin.toUpperCase();
+    if (creditLimit !== undefined) party.creditLimit = round2(Number(creditLimit) || 0);
+
+    if (openingBalance !== undefined) {
+      const oldOpen = round2(party.openingBalance || 0);
+      const newOpen = round2(Number(openingBalance) || 0);
+      const openType = openingBalanceType || party.openingBalanceType || 'RECEIVABLE';
+      const delta = round2(newOpen - oldOpen);
+
+      party.openingBalance = newOpen;
+      party.openingBalanceType = openType;
+      // Adjust currentBalance
+      if (delta !== 0) {
+        if (openType === 'RECEIVABLE' || openType === 'TO_RECEIVE') {
+          party.currentBalance = round2((party.currentBalance || 0) + delta);
+        } else {
+          party.currentBalance = round2((party.currentBalance || 0) - delta);
+        }
+      }
+    }
+
+    if (isDbConnected && typeof party.save === 'function') {
+      await party.save();
+    }
+
+    const memParty = store.parties.find(
+      (p) => (p._id || p.id)?.toString() === (party._id || party.id)?.toString()
+    );
+    if (memParty) {
+      Object.assign(memParty, {
+        name: party.name,
+        type: party.type,
+        phone: party.phone,
+        email: party.email,
+        address: party.address,
+        gstin: party.gstin,
+        creditLimit: party.creditLimit,
+        openingBalance: party.openingBalance,
+        openingBalanceType: party.openingBalanceType,
+        currentBalance: round2(party.currentBalance),
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Party updated successfully',
+      party,
+    });
+  } catch (error) {
+    console.error('Error in updateParty:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getParties,
   createParty,
   bulkImportParties,
   migrateBulkParties,
   getPartyById,
+  updateParty,
   getPartyLedger,
   getPartyLedgerSummary,
   deleteParty,

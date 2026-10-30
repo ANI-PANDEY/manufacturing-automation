@@ -6,6 +6,7 @@ const {
   bulkImportParties,
   migrateBulkParties,
   getPartyById,
+  updateParty,
   getPartyLedger,
   getPartyLedgerSummary,
   deleteParty,
@@ -22,6 +23,7 @@ router.post('/migrate-bulk', migrateBulkParties);
 router.get('/:partyId/ledger-summary', getPartyLedgerSummary);
 router.get('/:partyId/historical-bills', getPartyHistoricalBills);
 router.get('/:id', getPartyById);
+router.put('/:id', updateParty);
 router.get('/:id/ledger', getPartyLedger);
 router.delete('/:id', deleteParty);
 

@@ -15,11 +15,14 @@ import {
   Clock,
   Send,
   Printer,
+  Pencil,
 } from 'lucide-react';
 import { partyService, historicalBillService } from '../services/api';
 import { formatCurrency, exportLedgerToPDF, exportLedgerToExcel, shareLedgerOnWhatsApp } from '../utils/exportUtils';
 import { useAuth } from '../context/AuthContext';
 import HistoricalBillPrintModal from '../components/HistoricalBillPrintModal';
+import EditPaymentModal from '../components/EditPaymentModal';
+import EditHistoricalBillModal from '../components/EditHistoricalBillModal';
 
 const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpenPaymentModal, refreshTrigger }) => {
   const { user } = useAuth();
@@ -33,6 +36,40 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
   const [error, setError] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Edit Modals State
+  const [selectedPaymentForEdit, setSelectedPaymentForEdit] = useState(null);
+  const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] = useState(false);
+
+  const [selectedBillForEdit, setSelectedBillForEdit] = useState(null);
+  const [isEditBillModalOpen, setIsEditBillModalOpen] = useState(false);
+
+  const handleEditPayment = (row) => {
+    setSelectedPaymentForEdit({
+      ...row,
+      receiptNumber: row.refNo,
+      amountPaid: row.credit,
+      date: row.date,
+      paymentMode: row.paymentMode,
+      notes: row.notes,
+      party: ledgerData?.party,
+    });
+    setIsEditPaymentModalOpen(true);
+  };
+
+  const handleEditBill = (row) => {
+    setSelectedBillForEdit({
+      ...row,
+      billNumber: row.refNo,
+      subTotal: row.debit,
+      paymentReceived: row.paidAmount || 0,
+      balanceDue: row.remainingBalance,
+      date: row.date,
+      party: ledgerData?.party,
+      notes: row.notes,
+    });
+    setIsEditBillModalOpen(true);
+  };
 
   const handleOpenInvoice = async (row) => {
     try {
@@ -389,12 +426,13 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                     <th className="py-3.5 px-4 text-right">Remaining Balance (₹)</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4">Mode / Notes</th>
+                    <th className="py-3.5 px-4 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                   {filteredEvents.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="text-center py-12 text-slate-400">
+                      <td colSpan="9" className="text-center py-12 text-slate-400">
                         No transactions found for this party within the selected filters.
                       </td>
                     </tr>
@@ -402,9 +440,12 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                     filteredEvents.map((row, idx) => {
                       const isOpening = row.type === 'OPENING_BALANCE';
                       const isDispatch = row.type === 'DISPATCH';
+                      const isPayment = !isOpening && (row.type === 'PAYMENT' || row.credit > 0 || row.refNo?.startsWith('RCP-') || row.refNo?.startsWith('TX-'));
+                      const isHistoricalOrInvoice = isDispatch || row.debit > 0 || row.refNo?.startsWith('HB-') || row.refNo?.startsWith('BILL-') || row.refNo?.startsWith('HIST-');
+
                       return (
                         <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                          <td className="py-3.5 px-4 font-mono font-medium text-slate-600 dark:text-slate-300">
+                          <td className="py-3.5 px-4 font-mono font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">
                             {new Date(row.date).toLocaleDateString('en-IN', {
                               day: '2-digit',
                               month: 'short',
@@ -429,28 +470,18 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                           <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
                             <div className="flex items-center space-x-2">
                               <span>{row.refNo}</span>
-                              {(isDispatch || row.debit > 0 || row.refNo?.startsWith('HB-') || row.refNo?.startsWith('BILL-') || row.refNo?.startsWith('HIST-')) && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenInvoice(row)}
-                                  className="p-1 rounded-md bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 transition"
-                                  title="View & Print Tax Invoice"
-                                >
-                                  <Printer className="w-3.5 h-3.5" />
-                                </button>
-                              )}
                             </div>
                           </td>
 
-                          <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
                             {row.debit > 0 ? formatCurrency(row.debit) : '-'}
                           </td>
 
-                          <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                             {row.credit > 0 ? formatCurrency(row.credit) : '-'}
                           </td>
 
-                          <td className="py-3.5 px-4 text-right font-mono font-black text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-950/50">
+                          <td className="py-3.5 px-4 text-right font-mono font-black text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-950/50 whitespace-nowrap">
                             {formatCurrency(row.remainingBalance)}
                           </td>
 
@@ -483,6 +514,45 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
                           <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 max-w-xs truncate">
                             {row.notes}
                           </td>
+
+                          {/* Actions Column */}
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center space-x-1.5">
+                              {isHistoricalOrInvoice && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenInvoice(row)}
+                                    className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 transition"
+                                    title="View & Print Tax Invoice"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditBill(row)}
+                                    className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-bold text-[11px] transition border border-amber-300/40"
+                                    title="Edit Historical Bill / Past Invoice (पुराने बिल में सुधार करें)"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                    <span>Edit Bill</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {isPayment && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditPayment(row)}
+                                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] transition border border-emerald-300/40"
+                                  title="Edit Payment Receipt (प्राप्त भुगतान में सुधार करें)"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Edit Pay</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       );
                     })
@@ -502,6 +572,33 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
           setSelectedInvoice(null);
         }}
         billData={selectedInvoice}
+      />
+
+      {/* Edit Received Payment Modal */}
+      <EditPaymentModal
+        isOpen={isEditPaymentModalOpen}
+        onClose={() => {
+          setIsEditPaymentModalOpen(false);
+          setSelectedPaymentForEdit(null);
+        }}
+        paymentData={selectedPaymentForEdit}
+        partyName={ledgerData?.party?.name}
+        onSuccess={() => {
+          fetchLedger();
+        }}
+      />
+
+      {/* Edit Past Invoice / Historical Bill Modal */}
+      <EditHistoricalBillModal
+        isOpen={isEditBillModalOpen}
+        onClose={() => {
+          setIsEditBillModalOpen(false);
+          setSelectedBillForEdit(null);
+        }}
+        billData={selectedBillForEdit}
+        onSuccess={() => {
+          fetchLedger();
+        }}
       />
     </div>
   );

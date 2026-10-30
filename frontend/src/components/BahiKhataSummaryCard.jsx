@@ -15,10 +15,13 @@ import {
   Filter,
   User,
   ShieldAlert,
+  Pencil,
 } from 'lucide-react';
 import { partyService } from '../services/api';
 import { formatCurrency, exportLedgerToPDF, exportLedgerToExcel, shareLedgerOnWhatsApp } from '../utils/exportUtils';
 import { useAuth } from '../context/AuthContext';
+import EditPaymentModal from './EditPaymentModal';
+import EditHistoricalBillModal from './EditHistoricalBillModal';
 
 /**
  * BahiKhataSummaryCard
@@ -41,6 +44,38 @@ const BahiKhataSummaryCard = ({
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, INVOICE, PAYMENT_RECEIVED, OPENING_BALANCE
+
+  // Edit modals state
+  const [selectedPaymentForEdit, setSelectedPaymentForEdit] = useState(null);
+  const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] = useState(false);
+  const [selectedBillForEdit, setSelectedBillForEdit] = useState(null);
+  const [isEditBillModalOpen, setIsEditBillModalOpen] = useState(false);
+
+  const handleEditPayment = (row) => {
+    setSelectedPaymentForEdit({
+      ...row,
+      receiptNumber: row.referenceId,
+      amountPaid: row.credit,
+      date: row.date,
+      paymentMode: row.paymentMode,
+      notes: row.notes,
+      party: data?.party,
+    });
+    setIsEditPaymentModalOpen(true);
+  };
+
+  const handleEditBill = (row) => {
+    setSelectedBillForEdit({
+      ...row,
+      billNumber: row.referenceId,
+      subTotal: row.debit,
+      balanceDue: row.runningBalance,
+      date: row.date,
+      party: data?.party,
+      notes: row.notes,
+    });
+    setIsEditBillModalOpen(true);
+  };
 
   useEffect(() => {
     if (partyId) {
@@ -298,12 +333,13 @@ const BahiKhataSummaryCard = ({
                     <th className="py-3 px-4 text-right">Credit / Jama (-)</th>
                     <th className="py-3 px-4 text-right font-black">Remaining Balance (₹)</th>
                     <th className="py-3 px-4">Mode / Notes</th>
+                    <th className="py-3 px-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredLedger.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="text-center py-10 text-slate-400 font-medium">
+                      <td colSpan="8" className="text-center py-10 text-slate-400 font-medium">
                         No transactions recorded in Bahi-Khata ledger yet.
                       </td>
                     </tr>
@@ -368,6 +404,31 @@ const BahiKhataSummaryCard = ({
                             )}
                             <span>{row.notes || '-'}</span>
                           </td>
+
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                            {isInvoice && (
+                              <button
+                                type="button"
+                                onClick={() => handleEditBill(row)}
+                                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-bold text-[11px] transition border border-amber-300/40 shadow-sm"
+                                title="Edit Historical Bill / Past Invoice (पुराने बिल में सुधार करें)"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                <span>Edit Bill</span>
+                              </button>
+                            )}
+                            {isPayment && (
+                              <button
+                                type="button"
+                                onClick={() => handleEditPayment(row)}
+                                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] transition border border-emerald-300/40 shadow-sm"
+                                title="Edit Payment Receipt (प्राप्त भुगतान में सुधार करें)"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>Edit Pay</span>
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       );
                     })
@@ -376,6 +437,35 @@ const BahiKhataSummaryCard = ({
               </table>
             </div>
           </div>
+
+          {/* Edit Received Payment Modal */}
+          <EditPaymentModal
+            isOpen={isEditPaymentModalOpen}
+            onClose={() => {
+              setIsEditPaymentModalOpen(false);
+              setSelectedPaymentForEdit(null);
+            }}
+            paymentData={selectedPaymentForEdit}
+            partyName={data?.party?.name}
+            onSuccess={() => {
+              fetchSummary();
+              if (onPaymentSuccess) onPaymentSuccess();
+            }}
+          />
+
+          {/* Edit Historical Bill Modal */}
+          <EditHistoricalBillModal
+            isOpen={isEditBillModalOpen}
+            onClose={() => {
+              setIsEditBillModalOpen(false);
+              setSelectedBillForEdit(null);
+            }}
+            billData={selectedBillForEdit}
+            onSuccess={() => {
+              fetchSummary();
+              if (onPaymentSuccess) onPaymentSuccess();
+            }}
+          />
         </>
       )}
     </div>

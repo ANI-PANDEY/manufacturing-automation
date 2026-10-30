@@ -50,6 +50,7 @@ export const partyService = {
   migrateBulk: (data) => api.post('/parties/migrate-bulk', data),
   getLedgerSummary: (partyId) => api.get(`/parties/${partyId}/ledger-summary`),
   delete: (id) => api.delete(`/parties/${id}`),
+  update: (id, data) => api.put(`/parties/${id}`, data),
   getLedger: (id, params) => api.get(`/parties/${id}/ledger`, { params }),
   getHistoricalBills: (partyId) => api.get(`/parties/${partyId}/historical-bills`),
 };
@@ -57,6 +58,9 @@ export const partyService = {
 export const transactionService = {
   receivePayment: (data) => api.post('/transactions/receive-payment', data),
   getByParty: (partyId) => api.get(`/transactions/party/${partyId}`),
+  getById: (id) => api.get(`/transactions/${id}`),
+  update: (id, data) => api.put(`/transactions/${id}`, data),
+  delete: (id) => api.delete(`/transactions/${id}`),
 };
 
 export const orderService = {
@@ -71,6 +75,9 @@ export const paymentService = {
   receive: (data) => api.post('/payments/receive', data),
   receiveTransaction: (data) => api.post('/transactions/receive-payment', data),
   getByParty: (partyId) => api.get(`/payments/party/${partyId}`),
+  getById: (id) => api.get(`/payments/${id}`),
+  update: (id, data) => api.put(`/payments/${id}`, data),
+  delete: (id) => api.delete(`/payments/${id}`),
 };
 
 export const inventoryService = {
@@ -98,6 +105,9 @@ export const migrationService = {
 export const historicalBillService = {
   create: (data) => api.post('/historical-bills', data),
   getByParty: (partyId) => api.get(`/parties/${partyId}/historical-bills`),
+  getById: (billId) => api.get(`/historical-bills/${billId}`),
+  update: (billId, data) => api.put(`/historical-bills/${billId}`, data),
+  delete: (billId) => api.delete(`/historical-bills/${billId}`),
   getPrintData: (billId) => api.get(`/historical-bills/${billId}/print-data`),
 };
 
