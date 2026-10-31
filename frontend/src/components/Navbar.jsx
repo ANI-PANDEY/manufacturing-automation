@@ -112,11 +112,11 @@ const Navbar = ({
                 <button
                   onClick={onOpenEditEnterpriseModal}
                   title="Click to manage Company Name & Industry Settings"
-                  className="group inline-flex items-center space-x-1.5 bg-indigo-50 hover:bg-indigo-100/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-indigo-200/80 dark:border-indigo-800/60 transition max-w-[130px] sm:max-w-[260px] md:max-w-[320px] shadow-sm"
+                  className="group h-9 inline-flex items-center space-x-1.5 bg-indigo-50 hover:bg-indigo-100/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 text-xs font-bold px-2.5 sm:px-3 rounded-xl border border-indigo-200/80 dark:border-indigo-800/60 transition max-w-[130px] sm:max-w-[220px] md:max-w-[260px] shadow-sm shrink-0 whitespace-nowrap"
                 >
                   <Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                   <span className="truncate text-[11px] sm:text-xs">{currentCompanyName}</span>
-                  <span className="text-[9px] sm:text-[10px] bg-indigo-600 text-white dark:bg-indigo-500/30 dark:text-indigo-300 font-extrabold px-1.5 py-0.5 rounded-full shrink-0 hidden md:inline-block border border-indigo-500/30">
+                  <span className="text-[9px] sm:text-[10px] bg-indigo-600 text-white dark:bg-indigo-500/30 dark:text-indigo-300 font-extrabold px-1.5 py-0.5 rounded-md shrink-0 hidden md:inline-block border border-indigo-500/30">
                     {activePreset.badge}
                   </span>
                   <Edit3 className="w-3 h-3 text-indigo-400 opacity-70 group-hover:opacity-100 shrink-0 transition hidden sm:inline" />
@@ -125,15 +125,15 @@ const Navbar = ({
             </div>
 
             {/* CENTER: Main ERP Quick Actions (Desktop only) */}
-            <div className="hidden lg:flex items-center space-x-2.5">
+            <div className="hidden lg:flex items-center space-x-2 shrink-0">
               <button
                 onClick={onOpenInwardModal}
                 title="Inward Stock (Alt + I)"
-                className="inline-flex items-center space-x-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-purple-200/80 dark:border-purple-800/50 transition shadow-sm"
+                className="h-9 inline-flex items-center space-x-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-3 rounded-xl text-xs font-bold border border-purple-200/80 dark:border-purple-800/50 transition shadow-sm shrink-0 whitespace-nowrap active:scale-95"
               >
-                <PackagePlus className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span>{t('inwardStock')}</span>
-                <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 ml-1">
+                <PackagePlus className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                <span className="whitespace-nowrap">{t('inwardStock')}</span>
+                <kbd className="hidden xl:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 shrink-0">
                   Alt+I
                 </kbd>
               </button>
@@ -141,11 +141,11 @@ const Navbar = ({
               <button
                 onClick={onOpenOrderModal}
                 title="Create Dispatch Invoice (Alt + D)"
-                className="inline-flex items-center space-x-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-sky-200/80 dark:border-sky-800/50 transition shadow-sm"
+                className="h-9 inline-flex items-center space-x-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 px-3 rounded-xl text-xs font-bold border border-sky-200/80 dark:border-sky-800/50 transition shadow-sm shrink-0 whitespace-nowrap active:scale-95"
               >
-                <ShoppingCart className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                <span>{t('createDispatch')}</span>
-                <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-700 ml-1">
+                <ShoppingCart className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                <span className="whitespace-nowrap">{t('createDispatch')}</span>
+                <kbd className="hidden xl:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-700 shrink-0">
                   Alt+D
                 </kbd>
               </button>
@@ -153,11 +153,11 @@ const Navbar = ({
               <button
                 onClick={() => onOpenPaymentModal('')}
                 title="Receive Payment (Alt + P)"
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-1.5 rounded-xl text-xs font-black shadow-lg shadow-emerald-500/25 transition transform active:scale-95 cursor-pointer"
+                className="h-9 inline-flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition transform active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
               >
-                <CreditCard className="w-4 h-4 text-white" />
-                <span>{t('receivePayment')}</span>
-                <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-700/80 text-emerald-100 border border-emerald-400/30 ml-1 font-bold">
+                <CreditCard className="w-4 h-4 text-white shrink-0" />
+                <span className="whitespace-nowrap">{t('receivePayment')}</span>
+                <kbd className="hidden xl:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-700/90 text-emerald-100 border border-emerald-400/30 shrink-0 font-bold">
                   Alt+P
                 </kbd>
               </button>
@@ -165,10 +165,10 @@ const Navbar = ({
               <button
                 onClick={() => onOpenMigrationModal && onOpenMigrationModal('parties')}
                 title="Import Old Data & Excel Records (डेटा माइग्रेशन)"
-                className="inline-flex items-center space-x-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-xl text-xs font-bold border border-indigo-200/80 dark:border-indigo-800/50 transition shadow-sm"
+                className="h-9 inline-flex items-center space-x-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-3 rounded-xl text-xs font-bold border border-indigo-200/80 dark:border-indigo-800/50 transition shadow-sm shrink-0 whitespace-nowrap active:scale-95"
               >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Import Old Data</span>
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="whitespace-nowrap">Import Old Data</span>
               </button>
             </div>
 
@@ -177,36 +177,36 @@ const Navbar = ({
               {/* Quick Payment Button for Mobile & Tablet */}
               <button
                 onClick={() => onOpenPaymentModal('')}
-                className="lg:hidden px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-xs flex items-center gap-1 shadow-sm shadow-emerald-600/30 active:scale-95"
+                className="lg:hidden h-9 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-xs inline-flex items-center gap-1 shadow-sm shadow-emerald-600/30 active:scale-95 shrink-0 whitespace-nowrap"
                 title="Receive Payment"
               >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-bold">Pay</span>
+                <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[11px] font-bold whitespace-nowrap">Pay</span>
               </button>
 
               {/* Quick Dispatch Button for Mobile */}
               <button
                 onClick={onOpenOrderModal}
-                className="lg:hidden p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm shadow-sky-600/20 active:scale-95"
+                className="lg:hidden h-9 px-2.5 rounded-xl bg-sky-600 text-white font-bold text-xs inline-flex items-center gap-1 shadow-sm shadow-sky-600/20 active:scale-95 shrink-0 whitespace-nowrap"
                 title="Create Dispatch Invoice"
               >
-                <ShoppingCart className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[11px]">Invoice</span>
+                <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline text-[11px] whitespace-nowrap">Invoice</span>
               </button>
 
               {/* Direct Prominent Reset Password Button on Navbar */}
               <button
                 onClick={() => onOpenResetPasswordModal && onOpenResetPasswordModal()}
-                className="flex items-center space-x-1 sm:space-x-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 px-2 sm:px-3 py-1.5 rounded-xl font-extrabold text-xs transition cursor-pointer shadow-sm active:scale-95"
+                className="h-9 inline-flex items-center space-x-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2.5 sm:px-3 rounded-xl font-bold text-xs transition cursor-pointer shadow-sm active:scale-95 shrink-0 whitespace-nowrap"
                 title="Reset or Change Password with Secret PIN"
               >
-                <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                <span className="hidden sm:inline">Reset Password</span>
-                <span className="sm:hidden text-[10px]">PIN/Pass</span>
+                <KeyRound className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="hidden xl:inline whitespace-nowrap">Reset Password</span>
+                <span className="xl:hidden text-[11px] font-bold whitespace-nowrap">PIN</span>
               </button>
 
               {/* User Profile & System Controls Dropdown */}
-              <div className="relative z-50" ref={dropdownRef}>
+              <div className="relative z-50 shrink-0" ref={dropdownRef}>
                 <button
                   type="button"
                   id="admin-profile-btn"
@@ -215,15 +215,15 @@ const Navbar = ({
                     e.stopPropagation();
                     setIsProfileMenuOpen((prev) => !prev);
                   }}
-                  className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 sm:px-2.5 sm:py-1.5 transition text-left cursor-pointer"
+                  className="h-9 inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl px-2 sm:px-2.5 transition text-left cursor-pointer shrink-0 whitespace-nowrap"
                   aria-expanded={isProfileMenuOpen}
                   aria-haspopup="true"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
                     {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
                   </div>
-                  <div className="hidden sm:block leading-tight pr-1">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 line-clamp-1 max-w-[100px]">
+                  <div className="hidden sm:block leading-none pr-0.5">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[85px]">
                       {user?.name || 'Admin'}
                     </p>
                     <p className="text-[9px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
