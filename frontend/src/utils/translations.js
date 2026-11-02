@@ -9,6 +9,17 @@ export const translations = {
     dispatchInvoices: 'Dispatch Invoices',
     inventoryStock: 'Inventory & Stock',
     reconcileBadge: 'Reconcile',
+    importData: 'Import Data',
+    resetPin: 'Reset PIN',
+    language: 'Language',
+    theme: 'Theme',
+    darkTheme: 'Dark Theme',
+    lightTheme: 'Light Theme',
+    overviewShort: 'Overview',
+    ledgerShort: 'Ledger',
+    partiesShort: 'Parties',
+    ordersShort: 'Orders',
+    inventoryShort: 'Stock',
 
     // Actions & Buttons
     receivePayment: 'Receive Payment',
@@ -21,8 +32,12 @@ export const translations = {
     viewLedger: 'View Ledger',
     payBalance: 'Pay Balance',
     cancel: 'Cancel',
+    actions: 'Actions',
+    edit: 'Edit',
+    delete: 'Delete',
+    viewInvoice: 'View & Print Tax Invoice',
 
-    // Summary Metrics
+    // Summary Metrics & Ledger Cards
     totalOutstandingDue: 'Total Outstanding Due',
     b2bDispatchOrders: 'B2B Dispatch Orders',
     activeParties: 'Active Parties',
@@ -31,6 +46,20 @@ export const translations = {
     totalDispatchesDebit: 'Total Dispatches (Debit)',
     totalPaymentsCredit: 'Total Payments (Credit)',
     closingOutstandingDue: 'Closing Outstanding Due',
+    totalBilledInvoices: 'Total Invoices Billed',
+    totalPaymentsRecorded: 'Payments Recorded',
+    remainingOutstanding: 'Net Remaining Due',
+    pendingDueExplanation: 'Current outstanding amount to be collected',
+
+    // Filters
+    filterAll: 'All Time',
+    filter30Days: 'Last 30 Days',
+    filterThisMonth: 'This Month',
+    filterCustom: 'Custom Range',
+    passbookStatement: 'Passbook Ledger Statement',
+    chronologicalHistory: 'Chronological transaction history with dynamic running balance',
+    recordsFound: 'Record(s)',
+    noTransactionsFound: 'No transactions found for this party within the selected filters.',
 
     // Table Columns
     paymentValueDate: 'Payment / Value Date',
@@ -47,6 +76,32 @@ export const translations = {
     statusPartial: 'PARTIAL',
     statusPaid: 'PAID',
     statusReconciled: 'RECONCILED',
+
+    // Edit Historical Bill & Invoice Modal
+    editBillTitle: 'Edit Past Invoice / Historical Bill',
+    editBillSubtitle: 'Correct line items, rates, and historical payment adjustments',
+    billNumberLabel: 'Bill / Invoice Number',
+    billDateLabel: 'Bill Date',
+    itemizedLineItems: 'Itemized Line Items',
+    descriptionItem: 'Description / Item',
+    bags: 'Bags',
+    qtyPerBag: 'Qty/Bag (kg)',
+    totalWeight: 'Total Wt (kg)',
+    ratePerKg: 'Rate (₹/kg)',
+    amount: 'Amount (₹)',
+    del: 'Del',
+    addLineItem: '+ Add Line Item',
+    subtotal: 'Subtotal',
+    paidAtBillTime: 'Paid at Bill Time (₹)',
+    netBalanceDue: 'Net Balance Due',
+    notesCorrectionReason: 'Notes / Correction Reason',
+    updateSyncLedger: 'Update & Sync Ledger',
+    savingChanges: 'Saving Changes...',
+    deleteBill: 'Delete Bill',
+    confirmBillDeletion: 'Confirm Bill Deletion',
+    deleteBillWarning: 'Deleting this bill will remove it from the party\'s passbook and reduce the pending due balance. This cannot be undone.',
+    yesDeleteBill: 'Yes, Delete Bill',
+    deleteRowConfirmPrompt: 'Are you sure you want to DELETE this entry?\n\nThis will immediately reverse and recalculate the party balance in the ledger.',
 
     // Receive Payment Modal
     modalReceiveTitle: 'Receive Customer Payment',
@@ -90,6 +145,17 @@ export const translations = {
     dispatchInvoices: 'डिस्पैच चालान व बिल',
     inventoryStock: 'स्टॉक व इन्वेंट्री',
     reconcileBadge: 'हिसाब मिलाएं',
+    importData: 'डेटा आयात करें',
+    resetPin: 'पिन रीसेट करें',
+    language: 'भाषा (Language)',
+    theme: 'थीम (Theme)',
+    darkTheme: 'डार्क मोड',
+    lightTheme: 'लाइट मोड',
+    overviewShort: 'डैशबोर्ड',
+    ledgerShort: 'खाता',
+    partiesShort: 'पार्टियां',
+    ordersShort: 'बिल/ऑर्डर',
+    inventoryShort: 'स्टॉक',
 
     // Actions & Buttons
     receivePayment: 'भुगतान प्राप्त करें',
@@ -102,8 +168,12 @@ export const translations = {
     viewLedger: 'खाता देखें',
     payBalance: 'बकाया चुकाएं',
     cancel: 'रद्द करें',
+    actions: 'कार्रवाई',
+    edit: 'सुधारें',
+    delete: 'हटाएं',
+    viewInvoice: 'बिल देखें व प्रिंट करें',
 
-    // Summary Metrics
+    // Summary Metrics & Ledger Cards
     totalOutstandingDue: 'कुल बकाया राशि',
     b2bDispatchOrders: 'बी2बी डिस्पैच आर्डर',
     activeParties: 'सक्रिय पार्टियां',
@@ -112,6 +182,20 @@ export const translations = {
     totalDispatchesDebit: 'कुल बिक्री/डिस्पैच (डेबिट)',
     totalPaymentsCredit: 'कुल प्राप्त भुगतान (क्रेडिट)',
     closingOutstandingDue: 'अंतिम बकाया शेष (क्लोजिंग)',
+    totalBilledInvoices: 'कुल जारी बिल राशि',
+    totalPaymentsRecorded: 'कुल जमा भुगतान',
+    remainingOutstanding: 'शुद्ध बकाया शेष',
+    pendingDueExplanation: 'अभी पार्टी से कुल कितना बकाया लेना बाकी है',
+
+    // Filters
+    filterAll: 'सभी समय',
+    filter30Days: 'पिछले 30 दिन',
+    filterThisMonth: 'इस महीने',
+    filterCustom: 'तारीख चुनें',
+    passbookStatement: 'पासबुक लेजर खाता विवरण',
+    chronologicalHistory: 'तारीख-वार लेन-देन और बैलेंस का पूरा हिसाब',
+    recordsFound: 'रिकॉर्ड',
+    noTransactionsFound: 'चुने गए फ़िल्टर के अनुसार इस पार्टी का कोई लेन-देन नहीं मिला।',
 
     // Table Columns
     paymentValueDate: 'भुगतान / वैल्यू तारीख',
@@ -124,10 +208,36 @@ export const translations = {
     modeNotes: 'माध्यम व विवरण',
 
     // Statuses
-    statusUnpaid: 'अदत्त (बाकी)',
+    statusUnpaid: 'बाकी (अदत्त)',
     statusPartial: 'आंशिक जमा',
     statusPaid: 'पूर्ण चुकता',
     statusReconciled: 'हिसाब मिलान',
+
+    // Edit Historical Bill & Invoice Modal
+    editBillTitle: 'पुराना बिल / इनवॉइस सुधारें',
+    editBillSubtitle: 'बिल के सामान, वजन, भाव और पुरानी जमा राशि में सुधार करें',
+    billNumberLabel: 'बिल / इनवॉइस संख्या',
+    billDateLabel: 'बिल तारीख',
+    itemizedLineItems: 'सामान व वजन विवरण',
+    descriptionItem: 'सामान / विवरण',
+    bags: 'बोरी (Bags)',
+    qtyPerBag: 'वजन/बोरी (kg)',
+    totalWeight: 'कुल वजन (kg)',
+    ratePerKg: 'भाव (₹/kg)',
+    amount: 'रकम (₹)',
+    del: 'हटाएं',
+    addLineItem: '+ नया सामान जोड़ें',
+    subtotal: 'कुल राशि (सबटोटल)',
+    paidAtBillTime: 'बिल के समय जमा राशि (₹)',
+    netBalanceDue: 'शुद्ध शेष बकाया',
+    notesCorrectionReason: 'सुधार का कारण व टिप्पणी',
+    updateSyncLedger: 'अपडेट करें व खाता मिलाएं',
+    savingChanges: 'सहेजा जा रहा है...',
+    deleteBill: 'बिल हटाएं',
+    confirmBillDeletion: 'बिल हटाने की पुष्टि करें',
+    deleteBillWarning: 'यह बिल हटाने से पार्टी के पासबुक खाते से यह एंट्री हट जाएगी और बकाया राशि कम हो जाएगी। यह क्रिया वापस नहीं ली जा सकती।',
+    yesDeleteBill: 'हाँ, यह बिल हटाएं',
+    deleteRowConfirmPrompt: 'क्या आप सचमुच इस एंट्री को हटाना चाहते हैं?\n\nयह पार्टी के बैलेंस को तुरंत वापस ठीक कर देगा।',
 
     // Receive Payment Modal
     modalReceiveTitle: 'ग्राहक से भुगतान प्राप्त करें',
@@ -171,6 +281,17 @@ export const translations = {
     dispatchInvoices: 'Dispatch Invoices aur Bill',
     inventoryStock: 'Stock aur Inventory',
     reconcileBadge: 'Hisab Milayein',
+    importData: 'Import Data',
+    resetPin: 'Reset PIN',
+    language: 'Language',
+    theme: 'Theme',
+    darkTheme: 'Dark Theme',
+    lightTheme: 'Light Theme',
+    overviewShort: 'Dashboard',
+    ledgerShort: 'Khata',
+    partiesShort: 'Parties',
+    ordersShort: 'Orders',
+    inventoryShort: 'Stock',
 
     // Actions & Buttons
     receivePayment: 'Payment Receive Karein',
@@ -183,8 +304,12 @@ export const translations = {
     viewLedger: 'Khata Dekhein',
     payBalance: 'Bakaya Chukaaein',
     cancel: 'Cancel',
+    actions: 'Actions',
+    edit: 'Edit Karein',
+    delete: 'Delete Karein',
+    viewInvoice: 'Tax Invoice Print Karein',
 
-    // Summary Metrics
+    // Summary Metrics & Ledger Cards
     totalOutstandingDue: 'Total Bakaya Rashi',
     b2bDispatchOrders: 'B2B Dispatch Orders',
     activeParties: 'Active Parties',
@@ -193,6 +318,20 @@ export const translations = {
     totalDispatchesDebit: 'Total Sales/Dispatch (Debit)',
     totalPaymentsCredit: 'Total Received Payment (Credit)',
     closingOutstandingDue: 'Closing Bakaya Rashi',
+    totalBilledInvoices: 'Total Invoiced Bill Amount',
+    totalPaymentsRecorded: 'Total Received Jama Amount',
+    remainingOutstanding: 'Net Remaining Bakaya',
+    pendingDueExplanation: 'Abhi party se total kitna lena banta hai',
+
+    // Filters
+    filterAll: 'All Time',
+    filter30Days: 'Pichhle 30 Din',
+    filterThisMonth: 'Is Mahine',
+    filterCustom: 'Date Range Chunein',
+    passbookStatement: 'Passbook Ledger Statement (Khata)',
+    chronologicalHistory: 'Date-wise transactions aur running balance hisab',
+    recordsFound: 'Records',
+    noTransactionsFound: 'Selected filter mein is party ka koi transaction nahi mila.',
 
     // Table Columns
     paymentValueDate: 'Payment / Value Tareekh',
@@ -209,6 +348,32 @@ export const translations = {
     statusPartial: 'PARTIAL (Aanshik Jamaa)',
     statusPaid: 'PAID (Poora Chukaaya)',
     statusReconciled: 'RECONCILED (Hisab Milaa)',
+
+    // Edit Historical Bill & Invoice Modal
+    editBillTitle: 'Edit Past Invoice / Historical Bill',
+    editBillSubtitle: 'Line items, wajan, bhav aur payment hisab me sudhar karein',
+    billNumberLabel: 'Bill / Invoice Number',
+    billDateLabel: 'Bill Tareekh (Date)',
+    itemizedLineItems: 'Itemized Line Items (Saman & Wajan)',
+    descriptionItem: 'Item Description',
+    bags: 'Bags (Bori)',
+    qtyPerBag: 'Qty/Bag (kg)',
+    totalWeight: 'Total Weight (kg)',
+    ratePerKg: 'Rate / Bhav (₹/kg)',
+    amount: 'Amount (₹)',
+    del: 'Del',
+    addLineItem: '+ Naya Item Jodein',
+    subtotal: 'Subtotal Amount',
+    paidAtBillTime: 'Bill Ke Time Jama Rashi (₹)',
+    netBalanceDue: 'Net Bakaya Due',
+    notesCorrectionReason: 'Notes / Correction Reason',
+    updateSyncLedger: 'Update & Sync Ledger',
+    savingChanges: 'Saving Changes...',
+    deleteBill: 'Bill Delete Karein',
+    confirmBillDeletion: 'Bill Delete Karne Ki Pushti Karein',
+    deleteBillWarning: 'Yeh bill delete karne se party ke passbook khate se entry hat jayegi aur bakaya kam ho jayega. Yeh undo nahi kiya ja sakta.',
+    yesDeleteBill: 'Haan, Bill Delete Karein',
+    deleteRowConfirmPrompt: 'Kya aap sach mein is entry ko DELETE karna chahte hain?\n\nYeh party ke balance ko turant reverse/restore kar dega.',
 
     // Receive Payment Modal
     modalReceiveTitle: 'Customer Se Payment Receive Karein',

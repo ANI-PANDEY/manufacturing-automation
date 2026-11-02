@@ -21,6 +21,7 @@ import {
 import { partyService, historicalBillService, paymentService } from '../services/api';
 import { formatCurrency, exportLedgerToPDF, exportLedgerToExcel, shareLedgerOnWhatsApp } from '../utils/exportUtils';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import EditPaymentModal from './EditPaymentModal';
 import EditHistoricalBillModal from './EditHistoricalBillModal';
 
@@ -40,6 +41,7 @@ const BahiKhataSummaryCard = ({
   onPaymentSuccess,
 }) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -68,6 +70,7 @@ const BahiKhataSummaryCard = ({
   const handleEditBill = (row) => {
     setSelectedBillForEdit({
       ...row,
+      id: row.referenceId || row.id || row._id,
       billNumber: row.referenceId,
       subTotal: row.debit,
       balanceDue: row.runningBalance,
@@ -212,7 +215,7 @@ const BahiKhataSummaryCard = ({
             className="inline-flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg shadow-emerald-600/25 transition transform active:scale-95"
           >
             <CreditCard className="w-4 h-4" />
-            <span>+ Receive Payment</span>
+            <span>+ {t('receivePayment')}</span>
           </button>
         </div>
       </div>
@@ -241,7 +244,7 @@ const BahiKhataSummaryCard = ({
             <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-slate-700">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Full Payable (कुल देय)
+                  {t('fullPayable')}
                 </span>
                 <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
                   <ArrowUpRight className="w-4 h-4" />
@@ -259,7 +262,7 @@ const BahiKhataSummaryCard = ({
             <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white dark:to-slate-900 border-2 border-emerald-500/30 rounded-3xl p-5 shadow-sm relative overflow-hidden transition-all hover:border-emerald-500/50">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                  Total Received (कुल जमा)
+                  {t('totalReceived')}
                 </span>
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <ArrowDownLeft className="w-4 h-4" />
@@ -277,26 +280,26 @@ const BahiKhataSummaryCard = ({
             <div className="bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-white dark:to-slate-900 border-2 border-amber-500/40 rounded-3xl p-5 shadow-sm relative overflow-hidden transition-all hover:border-amber-500/60">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
-                  Remaining Balance (बाकी रकम)
+                  {t('remainingBalance')}
                 </span>
 
                 {/* Due status badge: UNPAID / PARTIAL / PAID */}
                 {status === 'PAID' && (
                   <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500 text-white shadow-sm shadow-emerald-500/25">
                     <CheckCircle2 className="w-3 h-3" />
-                    <span>PAID (हिसाब चुकता)</span>
+                    <span>{t('paid')}</span>
                   </span>
                 )}
                 {status === 'PARTIAL' && (
                   <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-sky-500 text-white shadow-sm shadow-sky-500/25">
                     <Clock className="w-3 h-3" />
-                    <span>PARTIAL (आंशिक बकाया)</span>
+                    <span>{t('partial')}</span>
                   </span>
                 )}
                 {status === 'UNPAID' && (
                   <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/25">
                     <AlertCircle className="w-3 h-3" />
-                    <span>UNPAID (पूरा बाकी)</span>
+                    <span>{t('unpaid')}</span>
                   </span>
                 )}
               </div>
@@ -444,16 +447,16 @@ const BahiKhataSummaryCard = ({
                                     type="button"
                                     onClick={() => handleEditBill(row)}
                                     className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] transition shadow-sm"
-                                    title="Edit Historical Bill / Past Invoice (पुराने बिल में सुधार करें)"
+                                    title={t('edit')}
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
-                                    <span>Edit</span>
+                                    <span>{t('edit')}</span>
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteRow(row)}
                                     className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 transition border border-rose-200 dark:border-rose-900/50"
-                                    title="Delete Bill (बिल को हटाएं)"
+                                    title={t('delete')}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -465,16 +468,16 @@ const BahiKhataSummaryCard = ({
                                     type="button"
                                     onClick={() => handleEditPayment(row)}
                                     className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition shadow-sm"
-                                    title="Edit Payment Receipt (प्राप्त भुगतान में सुधार करें)"
+                                    title={t('edit')}
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
-                                    <span>Edit</span>
+                                    <span>{t('edit')}</span>
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteRow(row)}
                                     className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 transition border border-rose-200 dark:border-rose-900/50"
-                                    title="Delete Payment (भुगतान को हटाएं)"
+                                    title={t('delete')}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>

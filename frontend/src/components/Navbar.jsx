@@ -168,12 +168,28 @@ const Navbar = ({
                 className="h-9 inline-flex items-center space-x-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-3 rounded-xl text-xs font-bold border border-indigo-200/80 dark:border-indigo-800/50 transition shadow-sm shrink-0 whitespace-nowrap active:scale-95 cursor-pointer"
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="whitespace-nowrap">Import Data</span>
+                <span className="whitespace-nowrap">{t('importData')}</span>
               </button>
             </div>
 
             {/* RIGHT: Responsive Actions & Unified Profile Menu */}
             <div className="flex items-center space-x-2 shrink-0">
+              {/* Quick Language Toggle Button (Desktop & Mobile) */}
+              <button
+                type="button"
+                onClick={() => {
+                  const nextLang = lang === 'en' ? 'hi' : lang === 'hi' ? 'hi_en' : 'en';
+                  setLang(nextLang);
+                }}
+                className="h-9 inline-flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 px-2.5 rounded-xl font-bold text-xs transition cursor-pointer shadow-sm active:scale-95 shrink-0 whitespace-nowrap"
+                title={`Current language: ${lang === 'hi' ? 'हिंदी (Hindi)' : lang === 'hi_en' ? 'Hinglish (Hi-En)' : 'English (EN)'}. Click to switch.`}
+              >
+                <Languages className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span className="font-extrabold text-[11px] tracking-wide">
+                  {lang === 'hi' ? 'हिंदी' : lang === 'hi_en' ? 'Hi-En' : 'EN'}
+                </span>
+              </button>
+
               {/* Quick Payment Button for Mobile & Tablet */}
               <button
                 onClick={() => onOpenPaymentModal('')}
@@ -181,7 +197,7 @@ const Navbar = ({
                 title="Receive Payment"
               >
                 <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[11px] font-bold whitespace-nowrap">Pay</span>
+                <span className="text-[11px] font-bold whitespace-nowrap">{t('payBalance') || 'Pay'}</span>
               </button>
 
               {/* Quick Dispatch Button for Mobile */}
@@ -191,7 +207,7 @@ const Navbar = ({
                 title="Create Dispatch Invoice"
               >
                 <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline text-[11px] whitespace-nowrap">Invoice</span>
+                <span className="hidden sm:inline text-[11px] whitespace-nowrap">{t('createDispatch') || 'Invoice'}</span>
               </button>
 
               {/* Direct Compact Reset Password / PIN Button on Navbar */}
@@ -201,7 +217,7 @@ const Navbar = ({
                 title="Reset or Change Password with Secret PIN"
               >
                 <KeyRound className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="hidden xl:inline whitespace-nowrap">Reset PIN</span>
+                <span className="hidden xl:inline whitespace-nowrap">{t('resetPin')}</span>
               </button>
 
               {/* User Profile & System Controls Dropdown */}

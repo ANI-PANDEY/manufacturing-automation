@@ -16,7 +16,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, onOpenPaymentModal, onOpenOr
     {
       id: 'dashboard',
       label: t('overviewDashboard') || 'Home',
-      shortLabel: 'Overview',
+      shortLabel: t('overviewShort') || 'Overview',
       icon: LayoutDashboard,
       activeColor: 'text-sky-500 dark:text-sky-400',
       activeBg: 'bg-sky-500/15',
@@ -24,7 +24,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, onOpenPaymentModal, onOpenOr
     {
       id: 'ledger',
       label: t('partyLedger') || 'Ledger',
-      shortLabel: 'Ledger',
+      shortLabel: t('ledgerShort') || 'Ledger',
       icon: BookOpen,
       activeColor: 'text-amber-500 dark:text-amber-400',
       activeBg: 'bg-amber-500/15',
@@ -32,7 +32,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, onOpenPaymentModal, onOpenOr
     {
       id: 'parties',
       label: t('partyDirectory') || 'Parties',
-      shortLabel: 'Parties',
+      shortLabel: t('partiesShort') || 'Parties',
       icon: Users,
       activeColor: 'text-indigo-500 dark:text-indigo-400',
       activeBg: 'bg-indigo-500/15',
@@ -40,7 +40,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, onOpenPaymentModal, onOpenOr
     {
       id: 'orders',
       label: t('dispatchInvoices') || 'Orders',
-      shortLabel: 'Orders',
+      shortLabel: t('ordersShort') || 'Orders',
       icon: ShoppingBag,
       activeColor: 'text-blue-500 dark:text-blue-400',
       activeBg: 'bg-blue-500/15',
@@ -48,7 +48,7 @@ const MobileBottomNav = ({ activeTab, setActiveTab, onOpenPaymentModal, onOpenOr
     {
       id: 'inventory',
       label: t('inventoryStock') || 'Stock',
-      shortLabel: 'Stock',
+      shortLabel: t('inventoryShort') || 'Stock',
       icon: Boxes,
       activeColor: 'text-purple-500 dark:text-purple-400',
       activeBg: 'bg-purple-500/15',

@@ -8,11 +8,11 @@ import {
   Trash2,
   CheckCircle2,
   Plus,
-  ArrowRight,
   ShieldAlert,
 } from 'lucide-react';
 import { historicalBillService } from '../services/api';
 import { formatCurrency } from '../utils/exportUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 const EditHistoricalBillModal = ({
   isOpen,
@@ -20,6 +20,7 @@ const EditHistoricalBillModal = ({
   billData,
   onSuccess,
 }) => {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -37,12 +38,12 @@ const EditHistoricalBillModal = ({
 
   useEffect(() => {
     if (billData) {
-      const id = billData._id || billData.billId || billData.billNumber || billData.refNo;
+      const id = billData.id || billData._id || billData.billId || billData.billNumber || billData.refNo;
       setBillId(id || '');
       setBillNumber(billData.billNumber || billData.refNo || '');
       setPartyName(billData.party?.name || billData.partyName || '');
 
-      const d = billData.date || billData.billDate;
+      const d = billData.date || billData.billDate || billData.orderDate;
       if (d) {
         try {
           setBillDate(new Date(d).toISOString().split('T')[0]);
@@ -53,8 +54,12 @@ const EditHistoricalBillModal = ({
         setBillDate(new Date().toISOString().split('T')[0]);
       }
 
-      setPaymentReceived(billData.paymentReceived !== undefined ? billData.paymentReceived : 0);
-      setNotes(billData.notes || '');
+      setPaymentReceived(
+        billData.paymentReceived !== undefined
+          ? billData.paymentReceived
+          : (billData.paidAmount !== undefined ? billData.paidAmount : 0)
+      );
+      setNotes(billData.notes || billData.dispatchNotes || '');
       setError('');
       setShowDeleteConfirm(false);
 
@@ -62,12 +67,18 @@ const EditHistoricalBillModal = ({
         setItems(
           billData.items.map((it, idx) => ({
             id: it._id || idx + 1,
-            description: it.description || it.particulars || '',
-            bags: it.bags !== undefined ? it.bags : '',
-            qtyPerBag: it.qtyPerBag !== undefined ? it.qtyPerBag : '',
-            totalWeight: it.totalWeight !== undefined ? it.totalWeight : '',
-            rate: it.rate !== undefined ? it.rate : '',
-            amount: it.amount || 0,
+            description: it.description || it.productName || it.product?.name || it.particulars || '',
+            bags: it.bags !== undefined && it.bags !== '' ? it.bags : '',
+            qtyPerBag: it.qtyPerBag !== undefined && it.qtyPerBag !== '' ? it.qtyPerBag : '',
+            totalWeight: it.totalWeight !== undefined && it.totalWeight !== ''
+              ? it.totalWeight
+              : (it.quantity !== undefined ? it.quantity : 1),
+            rate: it.rate !== undefined && it.rate !== ''
+              ? it.rate
+              : (it.unitPrice !== undefined ? it.unitPrice : 0),
+            amount: it.amount !== undefined && it.amount !== 0
+              ? it.amount
+              : (it.subtotal || it.totalPrice || 0),
           }))
         );
       } else {
@@ -75,7 +86,9 @@ const EditHistoricalBillModal = ({
         setItems([
           {
             id: 1,
-            description: billData.notes || 'Goods Invoiced',
+            description: billData.notes && !billData.notes.startsWith('Invoice for order')
+              ? billData.notes
+              : 'Goods Invoiced',
             bags: '',
             qtyPerBag: '',
             totalWeight: 1,
@@ -93,22 +106,37 @@ const EditHistoricalBillModal = ({
               const b = res.data.bill;
               setBillId(b._id || id);
               setBillNumber(b.billNumber || billData.billNumber || '');
-              if (b.partyId?.name) setPartyName(b.partyId.name);
-              if (b.date) {
-                setBillDate(new Date(b.date).toISOString().split('T')[0]);
+              if (b.partyId?.name || b.partyName || b.party?.name) {
+                setPartyName(b.partyId?.name || b.partyName || b.party?.name);
               }
-              setPaymentReceived(b.paymentReceived !== undefined ? b.paymentReceived : 0);
-              if (b.notes) setNotes(b.notes);
+              const fetchedDate = b.date || b.billDate || b.orderDate;
+              if (fetchedDate) {
+                try {
+                  setBillDate(new Date(fetchedDate).toISOString().split('T')[0]);
+                } catch (e) {}
+              }
+              setPaymentReceived(
+                b.paymentReceived !== undefined
+                  ? b.paymentReceived
+                  : (b.paidAmount !== undefined ? b.paidAmount : 0)
+              );
+              if (b.notes || b.dispatchNotes) setNotes(b.notes || b.dispatchNotes);
               if (Array.isArray(b.items) && b.items.length > 0) {
                 setItems(
                   b.items.map((it, idx) => ({
                     id: it._id || idx + 1,
-                    description: it.description || '',
-                    bags: it.bags !== undefined ? it.bags : '',
-                    qtyPerBag: it.qtyPerBag !== undefined ? it.qtyPerBag : '',
-                    totalWeight: it.totalWeight !== undefined ? it.totalWeight : '',
-                    rate: it.rate !== undefined ? it.rate : '',
-                    amount: it.amount || 0,
+                    description: it.description || it.productName || it.product?.name || it.particulars || '',
+                    bags: it.bags !== undefined && it.bags !== '' ? it.bags : '',
+                    qtyPerBag: it.qtyPerBag !== undefined && it.qtyPerBag !== '' ? it.qtyPerBag : '',
+                    totalWeight: it.totalWeight !== undefined && it.totalWeight !== ''
+                      ? it.totalWeight
+                      : (it.quantity !== undefined ? it.quantity : 1),
+                    rate: it.rate !== undefined && it.rate !== ''
+                      ? it.rate
+                      : (it.unitPrice !== undefined ? it.unitPrice : 0),
+                    amount: it.amount !== undefined && it.amount !== 0
+                      ? it.amount
+                      : (it.subtotal || it.totalPrice || 0),
                   }))
                 );
               }
@@ -220,8 +248,8 @@ const EditHistoricalBillModal = ({
         onClose();
       }
     } catch (err) {
-      console.error('Error updating historical bill:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to update historical bill');
+      console.error('Error updating bill:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to update bill');
     } finally {
       setLoading(false);
     }
@@ -237,8 +265,8 @@ const EditHistoricalBillModal = ({
         onClose();
       }
     } catch (err) {
-      console.error('Error deleting historical bill:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to delete historical bill');
+      console.error('Error deleting bill:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to delete bill');
     } finally {
       setDeleteLoading(false);
     }
@@ -255,13 +283,15 @@ const EditHistoricalBillModal = ({
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-base font-extrabold text-white">Edit Past Invoice / Historical Bill</h3>
+                <h3 className="text-base font-extrabold text-white">
+                  {t('editBillTitle')}
+                </h3>
                 <span className="text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30">
                   #{billNumber || 'HB-EDIT'}
                 </span>
               </div>
               <p className="text-xs text-slate-300">
-                {partyName ? `Party: ${partyName}` : 'Correct line items, rates, and historical payment adjustments'}
+                {partyName ? `Party: ${partyName}` : t('editBillSubtitle')}
               </p>
             </div>
           </div>
@@ -287,10 +317,10 @@ const EditHistoricalBillModal = ({
             <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-700 p-4 rounded-2xl space-y-3">
               <div className="flex items-center space-x-2 text-rose-700 dark:text-rose-300 text-xs font-bold">
                 <ShieldAlert className="w-4 h-4 text-rose-500" />
-                <span>Confirm Historical Bill Deletion (क्या आप सचमुच यह बिल हटाना चाहते हैं?)</span>
+                <span>{t('confirmBillDeletion')}</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                Deleting this bill will remove it from the party's passbook and reduce the pending due balance by {formatCurrency(netBalanceDue)}. This cannot be undone.
+                {t('deleteBillWarning')} ({formatCurrency(netBalanceDue)})
               </p>
               <div className="flex items-center space-x-2 justify-end">
                 <button
@@ -298,7 +328,7 @@ const EditHistoricalBillModal = ({
                   onClick={() => setShowDeleteConfirm(false)}
                   className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   type="button"
@@ -307,7 +337,7 @@ const EditHistoricalBillModal = ({
                   className="px-3.5 py-1.5 rounded-xl text-xs font-black text-white bg-rose-600 hover:bg-rose-700 transition flex items-center space-x-1.5 shadow-sm"
                 >
                   {deleteLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                  <span>Yes, Delete Historical Bill</span>
+                  <span>{t('yesDeleteBill')}</span>
                 </button>
               </div>
             </div>
@@ -317,7 +347,7 @@ const EditHistoricalBillModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Bill / Invoice Number (बिल संख्या)
+                {t('billNumberLabel')}
               </label>
               <input
                 type="text"
@@ -330,7 +360,7 @@ const EditHistoricalBillModal = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Bill Date (बिल तारीख)
+                {t('billDateLabel')}
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -349,10 +379,10 @@ const EditHistoricalBillModal = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                Itemized Line Items (सामान व वजन विवरण)
+                {t('itemizedLineItems')}
               </label>
               <span className="text-[11px] text-slate-400 font-mono">
-                {items.length} Item(s)
+                {items.length} {t('recordsFound') || 'Item(s)'}
               </span>
             </div>
 
@@ -360,13 +390,13 @@ const EditHistoricalBillModal = ({
               <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-2.5 px-3">Description / Item</th>
-                    <th className="py-2.5 px-3 w-20 text-center">Bags</th>
-                    <th className="py-2.5 px-3 w-28 text-center">Qty/Bag (kg)</th>
-                    <th className="py-2.5 px-3 w-28 text-right">Total Wt (kg)</th>
-                    <th className="py-2.5 px-3 w-28 text-right">Rate (₹/kg)</th>
-                    <th className="py-2.5 px-3 w-32 text-right">Amount (₹)</th>
-                    <th className="py-2.5 px-2 w-12 text-center">Del</th>
+                    <th className="py-2.5 px-3">{t('descriptionItem')}</th>
+                    <th className="py-2.5 px-3 w-20 text-center">{t('bags')}</th>
+                    <th className="py-2.5 px-3 w-28 text-center">{t('qtyPerBag')}</th>
+                    <th className="py-2.5 px-3 w-28 text-right">{t('totalWeight')}</th>
+                    <th className="py-2.5 px-3 w-28 text-right">{t('ratePerKg')}</th>
+                    <th className="py-2.5 px-3 w-32 text-right">{t('amount')}</th>
+                    <th className="py-2.5 px-2 w-12 text-center">{t('del')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -463,26 +493,26 @@ const EditHistoricalBillModal = ({
               className="inline-flex items-center space-x-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 transition"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Add Line Item</span>
+              <span>{t('addLineItem')}</span>
             </button>
           </div>
 
           {/* Real-time Calculation Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <span className="text-[10px] text-slate-400 uppercase block">Total Weight</span>
+              <span className="text-[10px] text-slate-400 uppercase block">{t('totalWeight')}</span>
               <span className="font-bold text-slate-900 dark:text-white">
-                {totalBags > 0 ? `${totalBags} Bags / ` : ''}{totalWeight} kg
+                {totalBags > 0 ? `${totalBags} ${t('bags')} / ` : ''}{totalWeight} kg
               </span>
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <span className="text-[10px] text-slate-400 uppercase block">Subtotal</span>
+              <span className="text-[10px] text-slate-400 uppercase block">{t('subtotal')}</span>
               <span className="font-black text-slate-900 dark:text-white">{formatCurrency(grandTotalAmount)}</span>
             </div>
 
             <div className="bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase block">Paid at Bill Time (₹)</span>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase block">{t('paidAtBillTime')}</span>
               <input
                 type="number"
                 min="0"
@@ -494,7 +524,7 @@ const EditHistoricalBillModal = ({
             </div>
 
             <div className="bg-amber-50/60 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800">
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase block">Net Balance Due</span>
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase block">{t('netBalanceDue')}</span>
               <span className="font-black text-amber-700 dark:text-amber-400">{formatCurrency(netBalanceDue)}</span>
             </div>
           </div>
@@ -502,7 +532,7 @@ const EditHistoricalBillModal = ({
           {/* Notes */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Notes / Correction Reason (विवरण)
+              {t('notesCorrectionReason')}
             </label>
             <textarea
               rows={2}
@@ -522,7 +552,7 @@ const EditHistoricalBillModal = ({
                 className="inline-flex items-center space-x-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Bill</span>
+                <span>{t('deleteBill')}</span>
               </button>
             ) : <div />}
 
@@ -532,7 +562,7 @@ const EditHistoricalBillModal = ({
                 onClick={onClose}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="submit"
@@ -542,12 +572,12 @@ const EditHistoricalBillModal = ({
                 {loading ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Saving Changes...</span>
+                    <span>{t('savingChanges')}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Update & Sync Ledger</span>
+                    <span>{t('updateSyncLedger')}</span>
                   </>
                 )}
               </button>

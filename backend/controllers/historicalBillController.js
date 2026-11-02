@@ -427,33 +427,71 @@ const getHistoricalBillById = async (req, res) => {
     }
 
     if (!bill && isDbConnected) {
-      const order = await Order.findOne({
+      const orderQuery = {
         $or: [
           { orderNumber: billId },
+          { orderNumber: String(billId).trim() },
+          { orderNumber: String(billId).trim().toUpperCase() },
           ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
         ],
-        ...userFilter,
-      }).populate('party').lean();
+      };
+      let order = await Order.findOne({ ...orderQuery, ...userFilter }).populate('party').lean();
+      if (!order && Object.keys(userFilter).length > 0) {
+        order = await Order.findOne(orderQuery).populate('party').lean();
+      }
 
       if (order) {
         bill = {
           _id: order._id,
           billNumber: order.orderNumber,
+          date: order.orderDate || order.createdAt,
           billDate: order.orderDate || order.createdAt,
           partyId: order.party,
           partyName: order.party?.name || '',
           subTotal: order.totalAmount || order.subtotalAmount || 0,
-          paymentReceived: 0,
-          balanceDue: order.totalAmount || 0,
+          paymentReceived: order.paidAmount || 0,
+          balanceDue: order.balanceDue !== undefined ? order.balanceDue : (order.totalAmount || 0),
           notes: order.dispatchNotes || `Order #${order.orderNumber}`,
           items: (order.items || []).map((it, idx) => ({
             id: it._id || idx + 1,
-            description: it.product?.name || it.productName || 'Goods Invoiced',
-            bags: 0,
-            qtyPerBag: 0,
-            totalWeight: it.quantity || 1,
-            rate: it.unitPrice || 0,
-            amount: it.totalPrice || round2((it.quantity || 1) * (it.unitPrice || 0)),
+            description: it.productName || it.product?.name || it.description || 'Goods Invoiced',
+            bags: it.bags || 0,
+            qtyPerBag: it.qtyPerBag || 0,
+            totalWeight: it.quantity || it.totalWeight || 1,
+            rate: it.unitPrice || it.rate || 0,
+            amount: it.subtotal || it.amount || round2((it.quantity || it.totalWeight || 1) * (it.unitPrice || it.rate || 0)),
+          })),
+        };
+      }
+    }
+
+    if (!bill) {
+      const memOrder = (store.orders || []).find(
+        (o) => o._id === billId || o.orderNumber === billId || o.orderNumber?.toUpperCase() === String(billId).toUpperCase()
+      );
+      if (memOrder) {
+        const pObj = store.parties.find(
+          (p) => (p._id || p.id)?.toString() === (memOrder.party?._id || memOrder.party)?.toString()
+        );
+        bill = {
+          _id: memOrder._id,
+          billNumber: memOrder.orderNumber,
+          date: memOrder.orderDate || memOrder.createdAt,
+          billDate: memOrder.orderDate || memOrder.createdAt,
+          partyId: pObj || memOrder.party,
+          partyName: pObj?.name || '',
+          subTotal: memOrder.totalAmount || 0,
+          paymentReceived: memOrder.paidAmount || 0,
+          balanceDue: memOrder.balanceDue || memOrder.totalAmount || 0,
+          notes: memOrder.dispatchNotes || `Order #${memOrder.orderNumber}`,
+          items: (memOrder.items || []).map((it, idx) => ({
+            id: it._id || idx + 1,
+            description: it.productName || it.description || 'Goods Invoiced',
+            bags: it.bags || 0,
+            qtyPerBag: it.qtyPerBag || 0,
+            totalWeight: it.quantity || it.totalWeight || 1,
+            rate: it.unitPrice || it.rate || 0,
+            amount: it.subtotal || it.amount || round2((it.quantity || it.totalWeight || 1) * (it.unitPrice || it.rate || 0)),
           })),
         };
       }
@@ -494,39 +532,136 @@ const updateHistoricalBill = async (req, res) => {
       (b) => b._id === billId || b.billNumber === billId
     );
 
-    if (!bill && !memBill && isDbConnected) {
-      const order = await Order.findOne({
-        $or: [
-          { orderNumber: billId },
-          ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
-        ],
-        ...userFilter,
-      });
-      if (order) {
-        const oldTotal = round2(order.totalAmount || 0);
-        const newTotal = req.body.subTotal !== undefined && !isNaN(Number(req.body.subTotal))
+    if (!bill && !memBill) {
+      let order = null;
+      if (isDbConnected) {
+        const orderQuery = {
+          $or: [
+            { orderNumber: billId },
+            { orderNumber: String(billId).trim() },
+            { orderNumber: String(billId).trim().toUpperCase() },
+            ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+          ],
+        };
+        order = await Order.findOne({ ...orderQuery, ...userFilter });
+        if (!order && Object.keys(userFilter).length > 0) {
+          order = await Order.findOne(orderQuery);
+        }
+      }
+
+      let memOrder = (store.orders || []).find(
+        (o) => o._id === billId || o.orderNumber === billId || o.orderNumber?.toUpperCase() === String(billId).toUpperCase()
+      );
+
+      if (order || memOrder) {
+        const targetOrder = order || memOrder;
+        const oldTotal = round2(targetOrder.totalAmount || 0);
+        const oldOrderNumber = targetOrder.orderNumber;
+        const newBillNumber = (req.body.billNumber || oldOrderNumber).trim();
+
+        // Process updated line items
+        let processedItems = targetOrder.items || [];
+        let calculatedSubtotal = 0;
+        if (Array.isArray(req.body.items) && req.body.items.length > 0) {
+          processedItems = req.body.items.map((it) => {
+            const desc = String(it.description || it.productName || 'Goods Invoiced').trim();
+            const wt = Number(it.totalWeight) || Number(it.quantity) || 1;
+            const rate = Number(it.rate) || Number(it.unitPrice) || 0;
+            const amt = it.amount !== undefined && !isNaN(Number(it.amount)) && Number(it.amount) > 0
+              ? round2(Number(it.amount))
+              : round2(wt * rate);
+            calculatedSubtotal += amt;
+            return {
+              productName: desc,
+              quantity: wt,
+              unitPrice: rate,
+              unit: 'Kg',
+              subtotal: amt,
+            };
+          });
+        }
+
+        const finalSubTotal = req.body.subTotal !== undefined && !isNaN(Number(req.body.subTotal)) && Number(req.body.subTotal) > 0
           ? round2(Number(req.body.subTotal))
-          : oldTotal;
-        const delta = round2(newTotal - oldTotal);
-        order.totalAmount = newTotal;
-        if (req.body.notes !== undefined) order.dispatchNotes = req.body.notes;
-        if (req.body.date) order.orderDate = new Date(req.body.date);
-        await order.save();
-        if (delta !== 0) {
-          const party = await Party.findOne({ _id: order.party, ...userFilter });
-          if (party) {
-            party.currentBalance = round2((party.currentBalance || 0) + delta);
-            await party.save();
+          : (calculatedSubtotal > 0 ? round2(calculatedSubtotal) : oldTotal);
+
+        const delta = round2(finalSubTotal - oldTotal);
+        const newPaidAmount = req.body.paymentReceived !== undefined && !isNaN(Number(req.body.paymentReceived))
+          ? round2(Math.min(Number(req.body.paymentReceived), finalSubTotal))
+          : round2(targetOrder.paidAmount || 0);
+        const newBalanceDue = Math.max(0, round2(finalSubTotal - newPaidAmount));
+        const newPaymentStatus = newBalanceDue <= 0 ? 'PAID' : (newPaidAmount > 0 ? 'PARTIAL' : 'UNPAID');
+
+        if (order) {
+          order.orderNumber = newBillNumber;
+          order.totalAmount = finalSubTotal;
+          order.subtotalAmount = finalSubTotal;
+          order.paidAmount = newPaidAmount;
+          order.balanceDue = newBalanceDue;
+          order.paymentStatus = newPaymentStatus;
+          if (Array.isArray(req.body.items) && req.body.items.length > 0) {
+            order.items = processedItems;
           }
+          if (req.body.notes !== undefined) order.dispatchNotes = req.body.notes;
+          if (req.body.date) order.orderDate = new Date(req.body.date);
+          await order.save();
+
+          // Sync party currentBalance if delta != 0
+          if (delta !== 0) {
+            const party = (await Party.findOne({ _id: order.party, ...userFilter })) || (await Party.findById(order.party));
+            if (party) {
+              party.currentBalance = round2((party.currentBalance || 0) + delta);
+              await party.save();
+            }
+          }
+
+          // Sync INVOICE Transaction in Ledger
           await Transaction.updateMany(
-            { referenceId: order.orderNumber, type: 'INVOICE', ...userFilter },
-            { debit: newTotal }
+            { referenceId: { $in: [oldOrderNumber, newBillNumber] }, type: 'INVOICE' },
+            {
+              referenceId: newBillNumber,
+              debit: finalSubTotal,
+              ...(req.body.date ? { date: new Date(req.body.date) } : {}),
+              ...(req.body.notes !== undefined ? { notes: req.body.notes } : {}),
+            }
           );
         }
+
+        if (memOrder) {
+          memOrder.orderNumber = newBillNumber;
+          memOrder.totalAmount = finalSubTotal;
+          memOrder.subtotalAmount = finalSubTotal;
+          memOrder.paidAmount = newPaidAmount;
+          memOrder.balanceDue = newBalanceDue;
+          memOrder.paymentStatus = newPaymentStatus;
+          if (Array.isArray(req.body.items) && req.body.items.length > 0) {
+            memOrder.items = processedItems;
+          }
+          if (req.body.notes !== undefined) memOrder.dispatchNotes = req.body.notes;
+          if (req.body.date) memOrder.orderDate = new Date(req.body.date);
+
+          const memParty = store.parties.find(
+            (p) => (p._id || p.id)?.toString() === (memOrder.party?._id || memOrder.party)?.toString()
+          );
+          if (memParty && delta !== 0) {
+            memParty.currentBalance = round2((memParty.currentBalance || 0) + delta);
+          }
+
+          const memTx = (store.transactions || []).find(
+            (t) => (t.referenceId === oldOrderNumber || t.referenceId === newBillNumber) && t.type === 'INVOICE'
+          );
+          if (memTx) {
+            memTx.referenceId = newBillNumber;
+            memTx.debit = finalSubTotal;
+            if (req.body.date) memTx.date = new Date(req.body.date);
+            if (req.body.notes !== undefined) memTx.notes = req.body.notes;
+          }
+        }
+
         return res.json({
           success: true,
-          message: `Invoice #${order.orderNumber} updated successfully`,
-          bill: order,
+          message: `Invoice #${newBillNumber} updated and Bahi-Khata ledger synchronized successfully`,
+          bill: order || memOrder,
         });
       }
     }
@@ -806,31 +941,67 @@ const deleteHistoricalBill = async (req, res) => {
       (b) => b._id === billId || b.billNumber === billId
     );
 
-    if (!bill && !memBill && isDbConnected) {
-      const order = await Order.findOne({
-        $or: [
-          { orderNumber: billId },
-          ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
-        ],
-        ...userFilter,
-      });
-      if (order) {
-        const partyId = order.party;
-        const totalAmount = round2(order.totalAmount || 0);
-        let updatedBalance = undefined;
-        if (partyId) {
-          const party = await Party.findOne({ _id: partyId, ...userFilter });
-          if (party) {
-            party.currentBalance = round2((party.currentBalance || 0) - totalAmount);
-            await party.save();
-            updatedBalance = party.currentBalance;
-          }
+    if (!bill && !memBill) {
+      let order = null;
+      if (isDbConnected) {
+        const orderQuery = {
+          $or: [
+            { orderNumber: billId },
+            { orderNumber: String(billId).trim() },
+            { orderNumber: String(billId).trim().toUpperCase() },
+            ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+          ],
+        };
+        order = await Order.findOne({ ...orderQuery, ...userFilter });
+        if (!order && Object.keys(userFilter).length > 0) {
+          order = await Order.findOne(orderQuery);
         }
-        await Transaction.deleteMany({ referenceId: order.orderNumber, ...userFilter });
-        await Order.deleteOne({ _id: order._id });
+      }
+
+      let memOrder = (store.orders || []).find(
+        (o) => o._id === billId || o.orderNumber === billId || o.orderNumber?.toUpperCase() === String(billId).toUpperCase()
+      );
+
+      if (order || memOrder) {
+        const targetOrder = order || memOrder;
+        const partyId = targetOrder.party?._id || targetOrder.party;
+        const totalAmount = round2(targetOrder.totalAmount || 0);
+        let updatedBalance = undefined;
+
+        if (order) {
+          if (partyId) {
+            let party = (await Party.findOne({ _id: partyId, ...userFilter })) || (await Party.findById(partyId));
+            if (party) {
+              party.currentBalance = round2((party.currentBalance || 0) - totalAmount);
+              await party.save();
+              updatedBalance = party.currentBalance;
+            }
+          }
+          await Transaction.deleteMany({ referenceId: targetOrder.orderNumber });
+          await Order.deleteOne({ _id: order._id });
+        }
+
+        if (memOrder) {
+          if (partyId) {
+            const memParty = store.parties.find(
+              (p) => (p._id || p.id)?.toString() === partyId.toString()
+            );
+            if (memParty) {
+              memParty.currentBalance = round2((memParty.currentBalance || 0) - totalAmount);
+              updatedBalance = memParty.currentBalance;
+            }
+          }
+          store.transactions = (store.transactions || []).filter(
+            (t) => t.referenceId !== targetOrder.orderNumber
+          );
+          store.orders = (store.orders || []).filter(
+            (o) => o._id !== targetOrder._id && o.orderNumber !== targetOrder.orderNumber
+          );
+        }
+
         return res.json({
           success: true,
-          message: `Order invoice #${order.orderNumber} deleted and ledger restored successfully`,
+          message: `Order invoice #${targetOrder.orderNumber} deleted and ledger restored successfully`,
           partyBalance: updatedBalance,
         });
       }
