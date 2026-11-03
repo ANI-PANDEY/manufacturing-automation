@@ -36,7 +36,10 @@ export const shareInvoiceOnWhatsApp = (order, companyName = 'Manufacturing ERP E
   }
 
   const itemsList = (order.items || [])
-    .map((item, idx) => `   ${idx + 1}. *${item.productName || item.product?.productName || 'Item'}* - ${item.quantity} ${item.unit || 'Pcs'} @ ₹${item.unitPrice} = *₹${item.subtotal || item.quantity * item.unitPrice}*`)
+    .map((item, idx) => {
+      const bagInfo = item.bags > 0 ? ` [${item.bags} Bags @ ${item.qtyPerBag || ''}kg/bag = ${item.quantity} kg]` : ` [${item.quantity} ${item.unit || 'Kg'}]`;
+      return `   ${idx + 1}. *${item.productName || item.product?.productName || 'Item'}*${bagInfo} @ ₹${item.unitPrice} = *₹${item.subtotal || item.quantity * item.unitPrice}*`;
+    })
     .join('\n');
 
   let upiText = '';
@@ -293,17 +296,35 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
   doc.text(`Address: ${order.party?.address || 'N/A'}`, 18, 64);
 
   // Items Table
-  const tableItems = (order.items || []).map((item, idx) => [
-    idx + 1,
-    item.productName || item.product?.productName || 'Goods Item',
-    `${item.quantity} ${item.unit || 'Pcs'}`,
-    formatCurrency(item.unitPrice),
-    formatCurrency(item.subtotal || item.quantity * item.unitPrice),
-  ]);
+  const hasBags = (order.items || []).some((it) => it.bags > 0);
+  const tableHeaders = hasBags
+    ? [['#', 'Item / Goods Description', 'Bags (बोरी)', 'Qty/Bag', 'Total Wt', 'Rate (₹)', 'Amount (₹)']]
+    : [['#', 'Item / Goods Description', 'Quantity & UOM', 'Unit Rate (₹)', 'Subtotal Amount (₹)']];
+
+  const tableItems = (order.items || []).map((item, idx) => {
+    if (hasBags) {
+      return [
+        idx + 1,
+        item.productName || item.product?.productName || 'Goods Item',
+        item.bags > 0 ? `${item.bags} Bags` : '-',
+        item.qtyPerBag > 0 ? `${item.qtyPerBag} kg` : '-',
+        `${item.quantity} ${item.unit || 'Kg'}`,
+        formatCurrency(item.unitPrice),
+        formatCurrency(item.subtotal || item.quantity * item.unitPrice),
+      ];
+    }
+    return [
+      idx + 1,
+      item.productName || item.product?.productName || 'Goods Item',
+      `${item.quantity} ${item.unit || 'Pcs'}`,
+      formatCurrency(item.unitPrice),
+      formatCurrency(item.subtotal || item.quantity * item.unitPrice),
+    ];
+  });
 
   doc.autoTable({
     startY: 80,
-    head: [['#', 'Item / Goods Description', 'Quantity & UOM', 'Unit Rate (₹)', 'Subtotal Amount (₹)']],
+    head: tableHeaders,
     body: tableItems,
     theme: 'grid',
     headStyles: {
@@ -316,13 +337,23 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
       fontSize: 8,
       textColor: [30, 41, 59],
     },
-    columnStyles: {
-      0: { cellWidth: 12 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 32 },
-      3: { cellWidth: 32, halign: 'right' },
-      4: { cellWidth: 38, halign: 'right' },
-    },
+    columnStyles: hasBags
+      ? {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 22, halign: 'center' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 24, halign: 'center' },
+          5: { cellWidth: 26, halign: 'right' },
+          6: { cellWidth: 32, halign: 'right' },
+        }
+      : {
+          0: { cellWidth: 12 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 32 },
+          3: { cellWidth: 32, halign: 'right' },
+          4: { cellWidth: 38, halign: 'right' },
+        },
   });
 
   // Financial Breakdown Box & UPI QR Section

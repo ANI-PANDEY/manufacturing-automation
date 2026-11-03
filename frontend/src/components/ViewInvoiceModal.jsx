@@ -187,32 +187,57 @@ const ViewInvoiceModal = ({ isOpen, onClose, order = null, onDeleteOrder = null 
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-3 px-4">#</th>
-                    <th className="py-3 px-4">Item / Product Name</th>
-                    <th className="py-3 px-4 text-center">Quantity & UOM</th>
-                    <th className="py-3 px-4 text-right">Unit Rate (₹)</th>
-                    <th className="py-3 px-4 text-right">Subtotal (₹)</th>
+                    <th className="py-3 px-3">#</th>
+                    <th className="py-3 px-3">Item / Product Name</th>
+                    <th className="py-3 px-3 text-center">Bags / Pcs (बोरी)</th>
+                    <th className="py-3 px-3 text-center">Qty / Bag</th>
+                    <th className="py-3 px-3 text-center">Total Wt / Qty</th>
+                    <th className="py-3 px-3 text-right">Unit Rate (₹)</th>
+                    <th className="py-3 px-3 text-right">Subtotal (₹)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200 font-medium">
                   {(order.items || []).map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                      <td className="py-3 px-4 font-mono text-slate-400">{idx + 1}</td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                      <td className="py-3 px-3 font-mono text-slate-400">{idx + 1}</td>
+                      <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
                         {item.productName || item.product?.productName || 'Goods Item'}
                       </td>
-                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">
-                        {item.quantity} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{item.unit || 'Pcs'}</span>
+                      <td className="py-3 px-3 text-center font-mono font-semibold text-slate-800 dark:text-slate-200">
+                        {item.bags > 0 ? `${item.bags} Bags` : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-3 text-center font-mono text-slate-600 dark:text-slate-300">
+                        {item.qtyPerBag > 0 ? `${item.qtyPerBag} kg` : '-'}
+                      </td>
+                      <td className="py-3 px-3 text-center font-mono font-bold text-slate-900 dark:text-white">
+                        {item.quantity} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{item.unit || 'Kg'}</span>
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
                         {formatCurrency(item.unitPrice)}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-black text-slate-900 dark:text-white">
+                      <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-white">
                         {formatCurrency(item.subtotal || item.quantity * item.unitPrice)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                {(order.items || []).some(it => it.bags > 0) && (
+                  <tfoot className="bg-slate-50 dark:bg-slate-800/60 font-bold border-t border-slate-200 dark:border-slate-800 text-xs">
+                    <tr>
+                      <td colSpan={2} className="py-2.5 px-3 text-slate-700 dark:text-slate-300">Total Dispatch:</td>
+                      <td className="py-2.5 px-3 text-center font-mono text-sky-600 dark:text-sky-400 font-extrabold">
+                        {(order.items || []).reduce((s, it) => s + (Number(it.bags) || 0), 0)} Bags
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-slate-400">-</td>
+                      <td className="py-2.5 px-3 text-center font-mono text-indigo-600 dark:text-indigo-400 font-extrabold">
+                        {Math.round(((order.items || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0) + Number.EPSILON) * 100) / 100} Kg
+                      </td>
+                      <td colSpan={2} className="py-2.5 px-3 text-right font-mono text-slate-900 dark:text-white">
+                        {formatCurrency(order.subtotalAmount || (order.items || []).reduce((s, it) => s + (Number(it.subtotal) || 0), 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>

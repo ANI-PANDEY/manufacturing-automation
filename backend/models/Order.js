@@ -10,6 +10,14 @@ const orderItemSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  bags: {
+    type: Number,
+    default: 0,
+  },
+  qtyPerBag: {
+    type: Number,
+    default: 0,
+  },
   quantity: {
     type: Number,
     required: true,

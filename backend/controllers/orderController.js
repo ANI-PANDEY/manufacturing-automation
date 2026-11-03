@@ -81,12 +81,17 @@ const createOrder = async (req, res) => {
       const itemSubtotal = round2(reqQty * itemRate);
       subtotalAmount = round2(subtotalAmount + itemSubtotal);
 
+      const itemBags = Number(item.bags) || 0;
+      const itemQtyPerBag = round2(Number(item.qtyPerBag) || 0);
+
       processedItems.push({
         product: product._id,
         productName: product.productName,
+        bags: itemBags,
+        qtyPerBag: itemQtyPerBag,
         quantity: reqQty,
         unitPrice: itemRate,
-        unit: product.unit || 'Pieces',
+        unit: product.unit || 'Kg',
         subtotal: itemSubtotal,
       });
     }
@@ -148,6 +153,13 @@ const createOrder = async (req, res) => {
 
     // Record in Bahi-Khata ledger as INVOICE transaction
     try {
+      const totalBags = processedItems.reduce((acc, it) => acc + (it.bags || 0), 0);
+      const totalQty = round2(processedItems.reduce((acc, it) => acc + (it.quantity || 0), 0));
+      const itemsDesc = processedItems.map((it) => it.productName).join(', ');
+      const autoNotes = totalBags > 0
+        ? `Invoice for order #${orderNumber} - ${itemsDesc} (${totalBags} bags, ${totalQty} kg)`
+        : `Invoice for order #${orderNumber} - ${itemsDesc} (${totalQty} kg)`;
+
       const invoiceTxPayload = {
         user: userId,
         partyId: party._id || partyId,
@@ -157,7 +169,7 @@ const createOrder = async (req, res) => {
         credit: 0,
         paymentMode: 'CASH',
         referenceId: orderNumber,
-        notes: dispatchNotes || `Invoice for order #${orderNumber} (${processedItems.length} items)`,
+        notes: dispatchNotes || autoNotes,
       };
 
       if (isDbConnected) {
