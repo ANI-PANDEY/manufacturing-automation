@@ -38,9 +38,9 @@ const EditHistoricalBillModal = ({
 
   useEffect(() => {
     if (billData) {
-      const id = billData.id || billData._id || billData.billId || billData.billNumber || billData.refNo;
+      const id = billData.billNumber || billData.refNo || billData.id || billData._id || billData.billId;
       setBillId(id || '');
-      setBillNumber(billData.billNumber || billData.refNo || '');
+      setBillNumber(billData.billNumber || billData.refNo || id || '');
       setPartyName(billData.party?.name || billData.partyName || '');
 
       const d = billData.date || billData.billDate || billData.orderDate;

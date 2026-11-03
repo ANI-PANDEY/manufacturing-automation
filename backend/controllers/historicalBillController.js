@@ -322,72 +322,221 @@ const getHistoricalBillPrintData = async (req, res) => {
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
   const userFilter = req.userFilter || {};
   const { billId } = req.params;
+  const cleanId = String(billId || '').trim();
 
   try {
     let bill = null;
+    let order = null;
+    let tx = null;
+
     if (isDbConnected) {
-      if (mongoose.Types.ObjectId.isValid(billId)) {
-        bill = await HistoricalBill.findOne({ _id: billId, ...userFilter }).populate('partyId').lean();
-      } else {
-        bill = await HistoricalBill.findOne({ billNumber: billId, ...userFilter }).populate('partyId').lean();
+      // 1. Try HistoricalBill with userFilter, then fallback without userFilter
+      if (mongoose.Types.ObjectId.isValid(cleanId)) {
+        bill = await HistoricalBill.findOne({ _id: cleanId, ...userFilter }).populate('partyId').lean();
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findById(cleanId).populate('partyId').lean();
+        }
+      }
+      if (!bill) {
+        bill = await HistoricalBill.findOne({
+          billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          ...userFilter,
+        }).populate('partyId').lean();
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          }).populate('partyId').lean();
+        }
+      }
+
+      // 2. If cleanId is a Transaction ID, find referenceId
+      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
+        tx = await Transaction.findById(cleanId).populate('partyId').lean();
+        if (tx && tx.referenceId) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          }).populate('partyId').lean();
+        }
+      }
+
+      // 3. Try Order if not HistoricalBill
+      if (!bill) {
+        const refToSearch = (tx && tx.referenceId) ? tx.referenceId : cleanId;
+        const orderQuery = {
+          $or: [
+            { orderNumber: refToSearch },
+            { orderNumber: { $regex: new RegExp(`^${refToSearch.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+            ...(mongoose.Types.ObjectId.isValid(refToSearch) ? [{ _id: refToSearch }] : []),
+          ],
+        };
+        order = await Order.findOne({ ...orderQuery, ...userFilter }).populate('party').lean();
+        if (!order && Object.keys(userFilter).length > 0) {
+          order = await Order.findOne(orderQuery).populate('party').lean();
+        }
       }
     }
 
-    if (!bill) {
+    if (!bill && !order) {
       bill = (store.historicalBills || []).find(
-        (b) => b._id === billId || b.billNumber === billId
+        (b) =>
+          b._id === cleanId ||
+          b.billNumber?.toUpperCase() === cleanId.toUpperCase()
       );
       if (bill && bill.partyId) {
-        const pObj = store.parties.find((p) => (p._id || p.id)?.toString() === (bill.partyId?._id || bill.partyId)?.toString());
+        const pObj = store.parties.find(
+          (p) => (p._id || p.id)?.toString() === (bill.partyId?._id || bill.partyId)?.toString()
+        );
         bill = { ...bill, partyId: pObj || bill.partyId };
       }
     }
 
-    if (!bill) {
-      return res.status(404).json({ success: false, message: 'Historical bill not found' });
+    if (!bill && !order) {
+      order = (store.orders || []).find(
+        (o) =>
+          o._id === cleanId ||
+          o.orderNumber?.toUpperCase() === cleanId.toUpperCase()
+      );
+      if (order && order.party) {
+        const pObj = store.parties.find(
+          (p) => (p._id || p.id)?.toString() === (order.party?._id || order.party)?.toString()
+        );
+        order = { ...order, party: pObj || order.party };
+      }
     }
 
-    const party = bill.partyId || {};
-    const items = bill.items || [];
-    const totalBags = items.reduce((sum, it) => sum + (Number(it.bags) || 0), 0);
-    const totalWeight = round2(items.reduce((sum, it) => sum + (Number(it.totalWeight) || 0), 0));
+    // Format print data for HistoricalBill
+    if (bill) {
+      const party = bill.partyId || {};
+      const items = bill.items || [];
+      const totalBags = items.reduce((sum, it) => sum + (Number(it.bags) || 0), 0);
+      const totalWeight = round2(items.reduce((sum, it) => sum + (Number(it.totalWeight) || 0), 0));
 
-    const printData = {
-      billId: bill._id,
-      billNumber: bill.billNumber,
-      date: bill.date,
-      formattedDate: new Date(bill.date).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-      party: {
-        id: party._id || party.id,
-        name: party.name || 'Valued Customer',
-        phone: party.phone || '',
-        address: party.address || '',
-        gstin: party.gstin || '',
-        currentBalance: round2(party.currentBalance || 0),
-      },
-      items: items.map((it, idx) => ({
-        srNo: idx + 1,
-        description: it.description,
-        bags: Number(it.bags) || 0,
-        qtyPerBag: round2(Number(it.qtyPerBag) || 0),
-        totalWeight: round2(Number(it.totalWeight) || 0),
-        rate: round2(Number(it.rate) || 0),
-        amount: round2(Number(it.amount) || 0),
-      })),
-      totalBags,
-      totalWeight,
-      subTotal: round2(bill.subTotal),
-      paymentReceived: round2(bill.paymentReceived || 0),
-      balanceDue: round2(bill.balanceDue),
-      paymentStatus: bill.paymentStatus || (bill.balanceDue <= 0 ? 'PAID' : bill.paymentReceived > 0 ? 'PARTIAL' : 'UNPAID'),
-      notes: bill.notes || '',
-    };
+      const printData = {
+        billId: bill._id,
+        billNumber: bill.billNumber,
+        date: bill.date,
+        formattedDate: new Date(bill.date).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
+        party: {
+          id: party._id || party.id,
+          name: party.name || 'Valued Customer',
+          phone: party.phone || '',
+          address: party.address || '',
+          gstin: party.gstin || '',
+          currentBalance: round2(party.currentBalance || 0),
+        },
+        items: items.map((it, idx) => ({
+          srNo: idx + 1,
+          description: it.description || it.particulars || 'Goods Invoiced',
+          bags: Number(it.bags) || 0,
+          qtyPerBag: round2(Number(it.qtyPerBag) || 0),
+          totalWeight: round2(Number(it.totalWeight) || 0),
+          rate: round2(Number(it.rate) || 0),
+          amount: round2(Number(it.amount) || 0),
+        })),
+        totalBags,
+        totalWeight,
+        subTotal: round2(bill.subTotal),
+        paymentReceived: round2(bill.paymentReceived || 0),
+        balanceDue: round2(bill.balanceDue),
+        paymentStatus: bill.paymentStatus || (bill.balanceDue <= 0 ? 'PAID' : bill.paymentReceived > 0 ? 'PARTIAL' : 'UNPAID'),
+        notes: bill.notes || '',
+      };
 
-    return res.json({ success: true, data: printData });
+      return res.json({ success: true, data: printData });
+    }
+
+    // Format print data for Order
+    if (order) {
+      const party = order.party || {};
+      const items = order.items || [];
+      const totalBags = items.reduce((sum, it) => sum + (Number(it.bags) || 0), 0);
+      const totalWeight = round2(items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0));
+
+      const printData = {
+        billId: order._id,
+        billNumber: order.orderNumber,
+        date: order.orderDate || order.createdAt,
+        formattedDate: new Date(order.orderDate || order.createdAt).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
+        party: {
+          id: party._id || party.id,
+          name: party.name || 'Valued Customer',
+          phone: party.phone || '',
+          address: party.address || '',
+          gstin: party.gstin || '',
+          currentBalance: round2(party.currentBalance || 0),
+        },
+        items: items.map((it, idx) => ({
+          srNo: idx + 1,
+          description: it.productName || it.product?.name || 'Goods Invoiced',
+          bags: Number(it.bags) || 0,
+          qtyPerBag: round2(Number(it.qtyPerBag) || 0),
+          totalWeight: round2(Number(it.quantity) || 1),
+          rate: round2(Number(it.unitPrice) || 0),
+          amount: round2(Number(it.subtotal || (it.quantity * it.unitPrice)) || 0),
+        })),
+        totalBags,
+        totalWeight,
+        subTotal: round2(order.totalAmount || order.subtotalAmount || 0),
+        paymentReceived: round2(order.paidAmount || 0),
+        balanceDue: round2(order.balanceDue !== undefined ? order.balanceDue : (order.totalAmount || 0)),
+        paymentStatus: order.paymentStatus || (order.balanceDue <= 0 ? 'PAID' : order.paidAmount > 0 ? 'PARTIAL' : 'UNPAID'),
+        notes: order.dispatchNotes || '',
+      };
+
+      return res.json({ success: true, data: printData });
+    }
+
+    // Fallback: Check standalone Transaction
+    if (tx) {
+      const party = tx.partyId || {};
+      const printData = {
+        billId: tx._id,
+        billNumber: tx.referenceId || `TX-${tx._id}`,
+        date: tx.date,
+        formattedDate: new Date(tx.date).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
+        party: {
+          id: party._id || party.id,
+          name: party.name || 'Valued Customer',
+          phone: party.phone || '',
+          address: party.address || '',
+          gstin: party.gstin || '',
+          currentBalance: round2(party.currentBalance || 0),
+        },
+        items: [
+          {
+            srNo: 1,
+            description: tx.notes || 'Goods Invoiced',
+            bags: 0,
+            qtyPerBag: 0,
+            totalWeight: 1,
+            rate: round2(tx.debit || 0),
+            amount: round2(tx.debit || 0),
+          },
+        ],
+        totalBags: 0,
+        totalWeight: 1,
+        subTotal: round2(tx.debit || 0),
+        paymentReceived: round2(tx.credit || 0),
+        balanceDue: round2(tx.debit || 0),
+        paymentStatus: tx.credit > 0 ? 'RECONCILED' : 'BILLED',
+        notes: tx.notes || '',
+      };
+      return res.json({ success: true, data: printData });
+    }
+
+    return res.status(404).json({ success: false, message: 'Historical bill or invoice not found' });
   } catch (error) {
     console.error('Error in getHistoricalBillPrintData:', error);
     return res.status(500).json({ success: false, message: error.message });
@@ -402,21 +551,48 @@ const getHistoricalBillById = async (req, res) => {
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
   const userFilter = req.userFilter || {};
   const { billId } = req.params;
+  const cleanId = String(billId || '').trim();
 
   try {
     let bill = null;
+    let tx = null;
+
     if (isDbConnected) {
-      if (mongoose.Types.ObjectId.isValid(billId)) {
-        bill = await HistoricalBill.findOne({ _id: billId, ...userFilter }).populate('partyId').lean();
+      // 1. Try HistoricalBill by _id or billNumber (with userFilter, then fallback without userFilter)
+      if (mongoose.Types.ObjectId.isValid(cleanId)) {
+        bill = await HistoricalBill.findOne({ _id: cleanId, ...userFilter }).populate('partyId').lean();
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findById(cleanId).populate('partyId').lean();
+        }
       }
       if (!bill) {
-        bill = await HistoricalBill.findOne({ billNumber: billId, ...userFilter }).populate('partyId').lean();
+        bill = await HistoricalBill.findOne({
+          billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          ...userFilter,
+        }).populate('partyId').lean();
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          }).populate('partyId').lean();
+        }
+      }
+
+      // 2. If cleanId is a Transaction ID, find referenceId
+      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
+        tx = await Transaction.findById(cleanId).populate('partyId').lean();
+        if (tx && tx.referenceId) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          }).populate('partyId').lean();
+        }
       }
     }
 
     if (!bill) {
       bill = (store.historicalBills || []).find(
-        (b) => b._id === billId || b.billNumber === billId
+        (b) =>
+          b._id === cleanId ||
+          b.billNumber?.toUpperCase() === cleanId.toUpperCase()
       );
       if (bill && bill.partyId) {
         const pObj = store.parties.find(
@@ -426,13 +602,14 @@ const getHistoricalBillById = async (req, res) => {
       }
     }
 
+    // 3. Try Order if not HistoricalBill
     if (!bill && isDbConnected) {
+      const refToSearch = (tx && tx.referenceId) ? tx.referenceId : cleanId;
       const orderQuery = {
         $or: [
-          { orderNumber: billId },
-          { orderNumber: String(billId).trim() },
-          { orderNumber: String(billId).trim().toUpperCase() },
-          ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+          { orderNumber: refToSearch },
+          { orderNumber: { $regex: new RegExp(`^${refToSearch.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+          ...(mongoose.Types.ObjectId.isValid(refToSearch) ? [{ _id: refToSearch }] : []),
         ],
       };
       let order = await Order.findOne({ ...orderQuery, ...userFilter }).populate('party').lean();
@@ -455,11 +632,11 @@ const getHistoricalBillById = async (req, res) => {
           items: (order.items || []).map((it, idx) => ({
             id: it._id || idx + 1,
             description: it.productName || it.product?.name || it.description || 'Goods Invoiced',
-            bags: it.bags || 0,
-            qtyPerBag: it.qtyPerBag || 0,
-            totalWeight: it.quantity || it.totalWeight || 1,
-            rate: it.unitPrice || it.rate || 0,
-            amount: it.subtotal || it.amount || round2((it.quantity || it.totalWeight || 1) * (it.unitPrice || it.rate || 0)),
+            bags: it.bags || '',
+            qtyPerBag: it.qtyPerBag || '',
+            totalWeight: it.quantity !== undefined ? it.quantity : 1,
+            rate: it.unitPrice !== undefined ? it.unitPrice : 0,
+            amount: it.subtotal || it.amount || round2((it.quantity || 1) * (it.unitPrice || 0)),
           })),
         };
       }
@@ -467,7 +644,9 @@ const getHistoricalBillById = async (req, res) => {
 
     if (!bill) {
       const memOrder = (store.orders || []).find(
-        (o) => o._id === billId || o.orderNumber === billId || o.orderNumber?.toUpperCase() === String(billId).toUpperCase()
+        (o) =>
+          o._id === cleanId ||
+          o.orderNumber?.toUpperCase() === cleanId.toUpperCase()
       );
       if (memOrder) {
         const pObj = store.parties.find(
@@ -487,14 +666,41 @@ const getHistoricalBillById = async (req, res) => {
           items: (memOrder.items || []).map((it, idx) => ({
             id: it._id || idx + 1,
             description: it.productName || it.description || 'Goods Invoiced',
-            bags: it.bags || 0,
-            qtyPerBag: it.qtyPerBag || 0,
-            totalWeight: it.quantity || it.totalWeight || 1,
-            rate: it.unitPrice || it.rate || 0,
-            amount: it.subtotal || it.amount || round2((it.quantity || it.totalWeight || 1) * (it.unitPrice || it.rate || 0)),
+            bags: it.bags || '',
+            qtyPerBag: it.qtyPerBag || '',
+            totalWeight: it.quantity !== undefined ? it.quantity : 1,
+            rate: it.unitPrice !== undefined ? it.unitPrice : 0,
+            amount: it.subtotal || it.amount || round2((it.quantity || 1) * (it.unitPrice || 0)),
           })),
         };
       }
+    }
+
+    // 4. Standalone Transaction fallback
+    if (!bill && tx) {
+      bill = {
+        _id: tx._id,
+        billNumber: tx.referenceId || `TX-${tx._id}`,
+        date: tx.date,
+        billDate: tx.date,
+        partyId: tx.partyId,
+        partyName: tx.partyId?.name || '',
+        subTotal: tx.debit || 0,
+        paymentReceived: tx.credit || 0,
+        balanceDue: tx.debit || 0,
+        notes: tx.notes || '',
+        items: [
+          {
+            id: 1,
+            description: tx.notes || 'Goods Invoiced',
+            bags: '',
+            qtyPerBag: '',
+            totalWeight: 1,
+            rate: tx.debit || 0,
+            amount: tx.debit || 0,
+          },
+        ],
+      };
     }
 
     if (!bill) {
@@ -516,31 +722,59 @@ const updateHistoricalBill = async (req, res) => {
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
   const userFilter = req.userFilter || {};
   const { billId } = req.params;
+  const cleanId = String(billId || '').trim();
 
   try {
     let bill = null;
+    let tx = null;
+
     if (isDbConnected) {
-      if (mongoose.Types.ObjectId.isValid(billId)) {
-        bill = await HistoricalBill.findOne({ _id: billId, ...userFilter });
+      if (mongoose.Types.ObjectId.isValid(cleanId)) {
+        bill = await HistoricalBill.findOne({ _id: cleanId, ...userFilter });
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findById(cleanId);
+        }
       }
       if (!bill) {
-        bill = await HistoricalBill.findOne({ billNumber: billId, ...userFilter });
+        bill = await HistoricalBill.findOne({
+          billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          ...userFilter,
+        });
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          });
+        }
+      }
+
+      // Check if cleanId is a Transaction ID
+      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
+        tx = await Transaction.findById(cleanId);
+        if (tx && tx.referenceId) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          });
+        }
       }
     }
 
     let memBill = (store.historicalBills || []).find(
-      (b) => b._id === billId || b.billNumber === billId
+      (b) =>
+        b._id === cleanId ||
+        b.billNumber?.toUpperCase() === cleanId.toUpperCase()
     );
 
     if (!bill && !memBill) {
       let order = null;
+      const refToSearch = (tx && tx.referenceId) ? tx.referenceId : cleanId;
+
       if (isDbConnected) {
         const orderQuery = {
           $or: [
-            { orderNumber: billId },
-            { orderNumber: String(billId).trim() },
-            { orderNumber: String(billId).trim().toUpperCase() },
-            ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+            { orderNumber: refToSearch },
+            { orderNumber: String(refToSearch).trim() },
+            { orderNumber: { $regex: new RegExp(`^${refToSearch.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+            ...(mongoose.Types.ObjectId.isValid(refToSearch) ? [{ _id: refToSearch }] : []),
           ],
         };
         order = await Order.findOne({ ...orderQuery, ...userFilter });
@@ -550,7 +784,11 @@ const updateHistoricalBill = async (req, res) => {
       }
 
       let memOrder = (store.orders || []).find(
-        (o) => o._id === billId || o.orderNumber === billId || o.orderNumber?.toUpperCase() === String(billId).toUpperCase()
+        (o) =>
+          o._id === cleanId ||
+          o.orderNumber === cleanId ||
+          o.orderNumber?.toUpperCase() === cleanId.toUpperCase() ||
+          (tx && tx.referenceId && (o._id === tx.referenceId || o.orderNumber?.toUpperCase() === tx.referenceId.toUpperCase()))
       );
 
       if (order || memOrder) {
@@ -662,6 +900,43 @@ const updateHistoricalBill = async (req, res) => {
           success: true,
           message: `Invoice #${newBillNumber} updated and Bahi-Khata ledger synchronized successfully`,
           bill: order || memOrder,
+        });
+      }
+
+      // Standalone Transaction fallback
+      if (tx) {
+        const oldDebit = round2(tx.debit || 0);
+        const oldRef = tx.referenceId || `TX-${tx._id}`;
+        const newBillNumber = (req.body.billNumber || oldRef).trim();
+        const finalSubTotal = req.body.subTotal !== undefined && !isNaN(Number(req.body.subTotal)) && Number(req.body.subTotal) > 0
+          ? round2(Number(req.body.subTotal))
+          : oldDebit;
+        const delta = round2(finalSubTotal - oldDebit);
+
+        tx.referenceId = newBillNumber;
+        tx.debit = finalSubTotal;
+        if (req.body.date) tx.date = new Date(req.body.date);
+        if (req.body.notes !== undefined) tx.notes = req.body.notes;
+        await tx.save();
+
+        if (delta !== 0 && tx.partyId) {
+          const party = (await Party.findOne({ _id: tx.partyId, ...userFilter })) || (await Party.findById(tx.partyId));
+          if (party) {
+            party.currentBalance = round2((party.currentBalance || 0) + delta);
+            await party.save();
+          }
+        }
+
+        return res.json({
+          success: true,
+          message: `Invoice #${newBillNumber} updated and Bahi-Khata ledger synchronized successfully`,
+          bill: {
+            _id: tx._id,
+            billNumber: newBillNumber,
+            date: tx.date,
+            subTotal: finalSubTotal,
+            partyId: tx.partyId,
+          },
         });
       }
     }
@@ -925,31 +1200,59 @@ const deleteHistoricalBill = async (req, res) => {
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
   const userFilter = req.userFilter || {};
   const { billId } = req.params;
+  const cleanId = String(billId || '').trim();
 
   try {
     let bill = null;
+    let tx = null;
+
     if (isDbConnected) {
-      if (mongoose.Types.ObjectId.isValid(billId)) {
-        bill = await HistoricalBill.findOne({ _id: billId, ...userFilter });
+      if (mongoose.Types.ObjectId.isValid(cleanId)) {
+        bill = await HistoricalBill.findOne({ _id: cleanId, ...userFilter });
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findById(cleanId);
+        }
       }
       if (!bill) {
-        bill = await HistoricalBill.findOne({ billNumber: billId, ...userFilter });
+        bill = await HistoricalBill.findOne({
+          billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          ...userFilter,
+        });
+        if (!bill && Object.keys(userFilter).length > 0) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          });
+        }
+      }
+
+      // Check if cleanId is a Transaction ID
+      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
+        tx = await Transaction.findById(cleanId);
+        if (tx && tx.referenceId) {
+          bill = await HistoricalBill.findOne({
+            billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          });
+        }
       }
     }
 
     let memBill = (store.historicalBills || []).find(
-      (b) => b._id === billId || b.billNumber === billId
+      (b) =>
+        b._id === cleanId ||
+        b.billNumber?.toUpperCase() === cleanId.toUpperCase()
     );
 
     if (!bill && !memBill) {
       let order = null;
+      const refToSearch = (tx && tx.referenceId) ? tx.referenceId : cleanId;
+
       if (isDbConnected) {
         const orderQuery = {
           $or: [
-            { orderNumber: billId },
-            { orderNumber: String(billId).trim() },
-            { orderNumber: String(billId).trim().toUpperCase() },
-            ...(mongoose.Types.ObjectId.isValid(billId) ? [{ _id: billId }] : []),
+            { orderNumber: refToSearch },
+            { orderNumber: String(refToSearch).trim() },
+            { orderNumber: { $regex: new RegExp(`^${refToSearch.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+            ...(mongoose.Types.ObjectId.isValid(refToSearch) ? [{ _id: refToSearch }] : []),
           ],
         };
         order = await Order.findOne({ ...orderQuery, ...userFilter });
@@ -959,7 +1262,11 @@ const deleteHistoricalBill = async (req, res) => {
       }
 
       let memOrder = (store.orders || []).find(
-        (o) => o._id === billId || o.orderNumber === billId || o.orderNumber?.toUpperCase() === String(billId).toUpperCase()
+        (o) =>
+          o._id === cleanId ||
+          o.orderNumber === cleanId ||
+          o.orderNumber?.toUpperCase() === cleanId.toUpperCase() ||
+          (tx && tx.referenceId && (o._id === tx.referenceId || o.orderNumber?.toUpperCase() === tx.referenceId.toUpperCase()))
       );
 
       if (order || memOrder) {
@@ -1005,6 +1312,30 @@ const deleteHistoricalBill = async (req, res) => {
           partyBalance: updatedBalance,
         });
       }
+
+      // Standalone Transaction fallback
+      if (tx) {
+        const partyId = tx.partyId?._id || tx.partyId;
+        const debitAmount = round2(tx.debit || 0);
+        let updatedBalance = undefined;
+
+        if (partyId) {
+          let party = (await Party.findOne({ _id: partyId, ...userFilter })) || (await Party.findById(partyId));
+          if (party && debitAmount > 0) {
+            party.currentBalance = round2((party.currentBalance || 0) - debitAmount);
+            await party.save();
+            updatedBalance = party.currentBalance;
+          }
+        }
+
+        await Transaction.deleteOne({ _id: tx._id });
+
+        return res.json({
+          success: true,
+          message: `Ledger entry #${tx.referenceId || tx._id} deleted and balance restored successfully`,
+          partyBalance: updatedBalance,
+        });
+      }
     }
 
     if (!bill && !memBill) {
@@ -1019,7 +1350,7 @@ const deleteHistoricalBill = async (req, res) => {
     // Revert party balance
     let party = null;
     if (isDbConnected && mongoose.Types.ObjectId.isValid(partyId)) {
-      party = await Party.findOne({ _id: partyId, ...userFilter });
+      party = (await Party.findOne({ _id: partyId, ...userFilter })) || (await Party.findById(partyId));
     }
     if (!party) {
       party = store.parties.find(
@@ -1046,13 +1377,16 @@ const deleteHistoricalBill = async (req, res) => {
     }
     if (isDbConnected) {
       await Transaction.deleteMany({
-        referenceId: { $in: [targetBillNumber, `RCP-${targetBillNumber}`] },
-        ...userFilter,
+        $or: [
+          { referenceId: { $in: [targetBillNumber, `RCP-${targetBillNumber}`] } },
+          { referenceId: { $regex: new RegExp(`^${targetBillNumber.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+          { referenceId: { $regex: new RegExp(`^RCP-${targetBillNumber.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+        ],
       });
     }
 
     store.historicalBills = (store.historicalBills || []).filter(
-      (b) => b._id !== billId && b.billNumber !== billId && (memBill ? b._id !== memBill._id : true)
+      (b) => b._id !== cleanId && b.billNumber !== cleanId && (memBill ? b._id !== memBill._id : true)
     );
     store.transactions = (store.transactions || []).filter(
       (t) => t.referenceId !== targetBillNumber && t.referenceId !== `RCP-${targetBillNumber}`

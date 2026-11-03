@@ -50,7 +50,8 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
   const handleEditPayment = (row) => {
     setSelectedPaymentForEdit({
       ...row,
-      receiptNumber: row.refNo,
+      id: row.refNo || row.id || row._id,
+      receiptNumber: row.refNo || row.id,
       amountPaid: row.credit,
       date: row.date,
       paymentMode: row.paymentMode,
@@ -63,7 +64,8 @@ const PartyLedger = ({ parties = [], selectedPartyId: initialPartyId = '', onOpe
   const handleEditBill = (row) => {
     setSelectedBillForEdit({
       ...row,
-      billNumber: row.refNo,
+      id: row.refNo || row.id || row._id,
+      billNumber: row.refNo || row.id,
       subTotal: row.debit,
       paymentReceived: row.paidAmount || 0,
       balanceDue: row.remainingBalance,

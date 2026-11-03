@@ -347,21 +347,49 @@ const getPaymentById = async (req, res) => {
     const { id } = req.params;
     const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
     const userFilter = req.userFilter || {};
+    const cleanId = String(id || '').trim();
 
     let payment = null;
     if (isDbConnected) {
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        payment = await PaymentTransaction.findOne({ _id: id, ...userFilter }).populate('party').lean();
+      // 1. Try PaymentTransaction with userFilter
+      if (mongoose.Types.ObjectId.isValid(cleanId)) {
+        payment = await PaymentTransaction.findOne({ _id: cleanId, ...userFilter }).populate('party').lean();
       }
       if (!payment) {
-        payment = await PaymentTransaction.findOne({ receiptNumber: id, ...userFilter }).populate('party').lean();
+        payment = await PaymentTransaction.findOne({
+          receiptNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          ...userFilter,
+        }).populate('party').lean();
       }
+
+      // 2. Fallback without userFilter if not found
+      if (!payment && Object.keys(userFilter).length > 0) {
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          payment = await PaymentTransaction.findById(cleanId).populate('party').lean();
+        }
+        if (!payment) {
+          payment = await PaymentTransaction.findOne({
+            receiptNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          }).populate('party').lean();
+        }
+      }
+
+      // 3. Fallback to Transaction model by _id or referenceId
       if (!payment) {
-        // Fallback to Transaction model by _id or referenceId
-        const txQuery = mongoose.Types.ObjectId.isValid(id)
-          ? { $or: [{ _id: id }, { referenceId: id }] }
-          : { referenceId: id };
-        const tx = await Transaction.findOne({ ...txQuery, ...userFilter }).populate('partyId').lean();
+        const txQuery = mongoose.Types.ObjectId.isValid(cleanId)
+          ? {
+              $or: [
+                { _id: cleanId },
+                { referenceId: cleanId },
+                { referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+              ],
+            }
+          : { referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } };
+
+        let tx = await Transaction.findOne({ ...txQuery, ...userFilter }).populate('partyId').lean();
+        if (!tx && Object.keys(userFilter).length > 0) {
+          tx = await Transaction.findOne(txQuery).populate('partyId').lean();
+        }
         if (tx) {
           payment = {
             _id: tx._id,
@@ -379,11 +407,16 @@ const getPaymentById = async (req, res) => {
 
     if (!payment) {
       payment = (store.payments || []).find(
-        (p) => p._id === id || p.receiptNumber === id || p.referenceNo === id
+        (p) =>
+          p._id === cleanId ||
+          p.receiptNumber?.toUpperCase() === cleanId.toUpperCase() ||
+          p.referenceNo?.toUpperCase() === cleanId.toUpperCase()
       );
       if (!payment) {
         const tx = (store.transactions || []).find(
-          (t) => t._id === id || t.referenceId === id
+          (t) =>
+            t._id === cleanId ||
+            t.referenceId?.toUpperCase() === cleanId.toUpperCase()
         );
         if (tx) {
           payment = {
@@ -425,6 +458,7 @@ const updatePayment = async (req, res) => {
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
   const userFilter = req.userFilter || {};
   const { id } = req.params;
+  const cleanId = String(id || '').trim();
 
   try {
     const {
@@ -452,38 +486,64 @@ const updatePayment = async (req, res) => {
     let txDoc = null;
 
     if (isDbConnected) {
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        paymentDoc = await PaymentTransaction.findOne({ _id: id, ...userFilter });
+      // 1. Try PaymentTransaction with userFilter
+      if (mongoose.Types.ObjectId.isValid(cleanId)) {
+        paymentDoc = await PaymentTransaction.findOne({ _id: cleanId, ...userFilter });
       }
       if (!paymentDoc) {
-        paymentDoc = await PaymentTransaction.findOne({ receiptNumber: id, ...userFilter });
-      }
-      // Also locate linked Transaction
-      if (paymentDoc) {
-        txDoc = await Transaction.findOne({
-          $or: [
-            { referenceId: paymentDoc.receiptNumber },
-            { referenceId: paymentDoc.referenceNo },
-          ],
+        paymentDoc = await PaymentTransaction.findOne({
+          receiptNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
           ...userFilter,
         });
       }
-      if (!paymentDoc) {
-        const txQuery = mongoose.Types.ObjectId.isValid(id)
-          ? { $or: [{ _id: id }, { referenceId: id }] }
-          : { referenceId: id };
-        txDoc = await Transaction.findOne({ ...txQuery, ...userFilter });
+      // Fallback without userFilter
+      if (!paymentDoc && Object.keys(userFilter).length > 0) {
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          paymentDoc = await PaymentTransaction.findById(cleanId);
+        }
+        if (!paymentDoc) {
+          paymentDoc = await PaymentTransaction.findOne({
+            receiptNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          });
+        }
+      }
+
+      // 2. Find linked or direct Transaction
+      const refToSearch = paymentDoc ? (paymentDoc.receiptNumber || paymentDoc.referenceNo) : cleanId;
+      const txQuery = mongoose.Types.ObjectId.isValid(refToSearch)
+        ? {
+            $or: [
+              { _id: refToSearch },
+              { referenceId: refToSearch },
+              { referenceId: { $regex: new RegExp(`^${String(refToSearch).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+            ],
+          }
+        : { referenceId: { $regex: new RegExp(`^${String(refToSearch).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } };
+
+      txDoc = await Transaction.findOne({ ...txQuery, ...userFilter });
+      if (!txDoc && Object.keys(userFilter).length > 0) {
+        txDoc = await Transaction.findOne(txQuery);
+      }
+
+      // If txDoc found but paymentDoc was not, try finding paymentDoc from txDoc.referenceId
+      if (!paymentDoc && txDoc && txDoc.referenceId) {
+        paymentDoc = await PaymentTransaction.findOne({
+          receiptNumber: { $regex: new RegExp(`^${txDoc.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+        });
       }
     }
 
     // In-memory lookup
     let memPayment = (store.payments || []).find(
-      (p) => p._id === id || p.receiptNumber === id || p.referenceNo === id
+      (p) =>
+        p._id === cleanId ||
+        p.receiptNumber?.toUpperCase() === cleanId.toUpperCase() ||
+        p.referenceNo?.toUpperCase() === cleanId.toUpperCase()
     );
     let memTx = (store.transactions || []).find(
       (t) =>
-        t._id === id ||
-        t.referenceId === id ||
+        t._id === cleanId ||
+        t.referenceId?.toUpperCase() === cleanId.toUpperCase() ||
         (memPayment && (t.referenceId === memPayment.receiptNumber || t.referenceId === memPayment.referenceNo))
     );
 
@@ -501,7 +561,7 @@ const updatePayment = async (req, res) => {
 
     let party = null;
     if (isDbConnected && mongoose.Types.ObjectId.isValid(partyId)) {
-      party = await Party.findOne({ _id: partyId, ...userFilter });
+      party = (await Party.findOne({ _id: partyId, ...userFilter })) || (await Party.findById(partyId));
     }
     if (!party) {
       party = store.parties.find(
@@ -578,6 +638,28 @@ const updatePayment = async (req, res) => {
       if (notes !== undefined) memTx.notes = notes;
     }
 
+    // If payment was recorded on a Historical Bill (e.g. RCP-HB-...), sync the Historical Bill
+    const effectiveRef = paymentDoc?.receiptNumber || txDoc?.referenceId || cleanId;
+    if (effectiveRef && effectiveRef.startsWith('RCP-')) {
+      const billNoCandidate = effectiveRef.replace(/^RCP-/, '');
+      const HistoricalBill = mongoose.models.HistoricalBill || require('../models/HistoricalBill');
+      if (isDbConnected) {
+        const histBill = await HistoricalBill.findOne({ billNumber: billNoCandidate });
+        if (histBill) {
+          histBill.paymentReceived = newAmount;
+          histBill.balanceDue = round2(Math.max(0, (histBill.subTotal || 0) - newAmount));
+          histBill.paymentStatus = histBill.balanceDue <= 0 ? 'PAID' : newAmount > 0 ? 'PARTIAL' : 'UNPAID';
+          await histBill.save();
+        }
+      }
+      const memHb = (store.historicalBills || []).find((b) => b.billNumber === billNoCandidate);
+      if (memHb) {
+        memHb.paymentReceived = newAmount;
+        memHb.balanceDue = round2(Math.max(0, (memHb.subTotal || 0) - newAmount));
+        memHb.paymentStatus = memHb.balanceDue <= 0 ? 'PAID' : newAmount > 0 ? 'PARTIAL' : 'UNPAID';
+      }
+    }
+
     return res.json({
       success: true,
       message: 'Payment updated and ledger synchronized successfully',
@@ -598,42 +680,69 @@ const deletePayment = async (req, res) => {
   const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
   const userFilter = req.userFilter || {};
   const { id } = req.params;
+  const cleanId = String(id || '').trim();
 
   try {
     let paymentDoc = null;
     let txDoc = null;
 
     if (isDbConnected) {
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        paymentDoc = await PaymentTransaction.findOne({ _id: id, ...userFilter });
+      // 1. Try PaymentTransaction with userFilter
+      if (mongoose.Types.ObjectId.isValid(cleanId)) {
+        paymentDoc = await PaymentTransaction.findOne({ _id: cleanId, ...userFilter });
       }
       if (!paymentDoc) {
-        paymentDoc = await PaymentTransaction.findOne({ receiptNumber: id, ...userFilter });
-      }
-      if (paymentDoc) {
-        txDoc = await Transaction.findOne({
-          $or: [
-            { referenceId: paymentDoc.receiptNumber },
-            { referenceId: paymentDoc.referenceNo },
-          ],
+        paymentDoc = await PaymentTransaction.findOne({
+          receiptNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
           ...userFilter,
         });
       }
-      if (!paymentDoc) {
-        const txQuery = mongoose.Types.ObjectId.isValid(id)
-          ? { $or: [{ _id: id }, { referenceId: id }] }
-          : { referenceId: id };
-        txDoc = await Transaction.findOne({ ...txQuery, ...userFilter });
+      // Fallback without userFilter
+      if (!paymentDoc && Object.keys(userFilter).length > 0) {
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          paymentDoc = await PaymentTransaction.findById(cleanId);
+        }
+        if (!paymentDoc) {
+          paymentDoc = await PaymentTransaction.findOne({
+            receiptNumber: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+          });
+        }
+      }
+
+      // 2. Find linked or direct Transaction
+      const refToSearch = paymentDoc ? (paymentDoc.receiptNumber || paymentDoc.referenceNo) : cleanId;
+      const txQuery = mongoose.Types.ObjectId.isValid(refToSearch)
+        ? {
+            $or: [
+              { _id: refToSearch },
+              { referenceId: refToSearch },
+              { referenceId: { $regex: new RegExp(`^${String(refToSearch).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } },
+            ],
+          }
+        : { referenceId: { $regex: new RegExp(`^${String(refToSearch).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') } };
+
+      txDoc = await Transaction.findOne({ ...txQuery, ...userFilter });
+      if (!txDoc && Object.keys(userFilter).length > 0) {
+        txDoc = await Transaction.findOne(txQuery);
+      }
+
+      if (!paymentDoc && txDoc && txDoc.referenceId) {
+        paymentDoc = await PaymentTransaction.findOne({
+          receiptNumber: { $regex: new RegExp(`^${txDoc.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+        });
       }
     }
 
     let memPayment = (store.payments || []).find(
-      (p) => p._id === id || p.receiptNumber === id || p.referenceNo === id
+      (p) =>
+        p._id === cleanId ||
+        p.receiptNumber?.toUpperCase() === cleanId.toUpperCase() ||
+        p.referenceNo?.toUpperCase() === cleanId.toUpperCase()
     );
     let memTx = (store.transactions || []).find(
       (t) =>
-        t._id === id ||
-        t.referenceId === id ||
+        t._id === cleanId ||
+        t.referenceId?.toUpperCase() === cleanId.toUpperCase() ||
         (memPayment && (t.referenceId === memPayment.receiptNumber || t.referenceId === memPayment.referenceNo))
     );
 
@@ -662,7 +771,7 @@ const deletePayment = async (req, res) => {
     // Revert party balance: add back the deleted payment
     let party = null;
     if (isDbConnected && mongoose.Types.ObjectId.isValid(partyId)) {
-      party = await Party.findOne({ _id: partyId, ...userFilter });
+      party = (await Party.findOne({ _id: partyId, ...userFilter })) || (await Party.findById(partyId));
     }
     if (!party) {
       party = store.parties.find(
@@ -683,6 +792,28 @@ const deletePayment = async (req, res) => {
       }
     }
 
+    // If payment was recorded on a Historical Bill (e.g. RCP-HB-...), revert HistoricalBill payment fields
+    const effectiveRef = paymentDoc?.receiptNumber || txDoc?.referenceId || cleanId;
+    if (effectiveRef && effectiveRef.startsWith('RCP-')) {
+      const billNoCandidate = effectiveRef.replace(/^RCP-/, '');
+      const HistoricalBill = mongoose.models.HistoricalBill || require('../models/HistoricalBill');
+      if (isDbConnected) {
+        const histBill = await HistoricalBill.findOne({ billNumber: billNoCandidate });
+        if (histBill) {
+          histBill.paymentReceived = 0;
+          histBill.balanceDue = round2(histBill.subTotal || 0);
+          histBill.paymentStatus = 'UNPAID';
+          await histBill.save();
+        }
+      }
+      const memHb = (store.historicalBills || []).find((b) => b.billNumber === billNoCandidate);
+      if (memHb) {
+        memHb.paymentReceived = 0;
+        memHb.balanceDue = round2(memHb.subTotal || 0);
+        memHb.paymentStatus = 'UNPAID';
+      }
+    }
+
     // Delete documents
     if (paymentDoc) {
       await PaymentTransaction.deleteOne({ _id: paymentDoc._id });
@@ -692,13 +823,19 @@ const deletePayment = async (req, res) => {
     }
 
     store.payments = (store.payments || []).filter(
-      (p) => p._id !== id && p.receiptNumber !== id && (memPayment ? p._id !== memPayment._id : true)
+      (p) =>
+        p._id !== cleanId &&
+        p.receiptNumber !== cleanId &&
+        (memPayment ? p._id !== memPayment._id : true)
     );
     store.transactions = (store.transactions || []).filter(
       (t) =>
-        t._id !== id &&
-        t.referenceId !== id &&
-        (memPayment ? t.referenceId !== memPayment.receiptNumber && t.referenceId !== memPayment.referenceNo : true)
+        t._id !== cleanId &&
+        t.referenceId !== cleanId &&
+        (txDoc ? t._id !== txDoc._id : true) &&
+        (memPayment
+          ? t.referenceId !== memPayment.receiptNumber && t.referenceId !== memPayment.referenceNo
+          : true)
     );
 
     return res.json({

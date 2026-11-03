@@ -36,9 +36,9 @@ const EditPaymentModal = ({
 
   useEffect(() => {
     if (paymentData) {
-      const id = paymentData._id || paymentData.id || paymentData.receiptNumber || paymentData.refNo;
+      const id = paymentData.receiptNumber || paymentData.refNo || paymentData.referenceId || paymentData._id || paymentData.id;
       setPaymentId(id || '');
-      setReceiptNumber(paymentData.receiptNumber || paymentData.refNo || paymentData.referenceId || '');
+      setReceiptNumber(paymentData.receiptNumber || paymentData.refNo || paymentData.referenceId || id || '');
 
       const d = paymentData.paymentDate || paymentData.date;
       if (d) {
