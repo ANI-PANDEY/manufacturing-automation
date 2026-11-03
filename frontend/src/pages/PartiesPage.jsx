@@ -273,8 +273,8 @@ const PartiesPage = ({ parties = [], onSelectPartyForLedger, onOpenPaymentModal,
         </div>
       </div>
 
-      {/* Party Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Party Cards Grid (2 cols on tablet/laptop, 3 cols on desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
         {filteredParties.length === 0 ? (
           <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm">
             No matching B2B accounts found.

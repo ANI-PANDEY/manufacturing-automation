@@ -8,7 +8,7 @@ const RestockModal = ({
   isOpen,
   onClose,
   targetItem = null,
-  itemType = 'product', // 'product' or 'raw'
+  itemType = 'product', 
   availableProducts = [],
   availableRawMaterials = [],
   onSuccess,
@@ -44,8 +44,6 @@ const RestockModal = ({
   }, [isOpen, targetItem, itemType]);
 
   if (!isOpen) return null;
-
-  // Resolve current active item
   let activeItem = targetItem;
   if (!activeItem && selectedId) {
     if (type === 'product') {

@@ -396,7 +396,7 @@ const HistoricalBillsMigrationGrid = ({
       )}
 
       {/* Customer & Bill Meta Selectors */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
         <div>
           <label className="block text-[11px] font-black uppercase text-slate-500 dark:text-slate-400 mb-1">
             Customer / Party *

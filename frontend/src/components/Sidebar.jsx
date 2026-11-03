@@ -1,8 +1,18 @@
 import React from 'react';
-import { LayoutDashboard, BookOpen, Users, ShoppingBag, Boxes, Database } from 'lucide-react';
+import {
+  LayoutDashboard,
+  BookOpen,
+  Users,
+  ShoppingBag,
+  Boxes,
+  Database,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+} from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, isCollapsed = false, toggleSidebar }) => {
   const { t } = useLanguage();
 
   const menuItems = [
@@ -15,11 +25,33 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <aside className="w-64 bg-white/70 dark:bg-slate-950/80 backdrop-blur-md border-r border-slate-200 dark:border-slate-800/80 shrink-0 hidden md:flex flex-col justify-between transition-colors duration-200">
-      <div className="p-4">
-        <h2 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 px-3">
-          Core ERP Modules
-        </h2>
+    <aside
+      className={`${
+        isCollapsed ? 'w-20' : 'w-64'
+      } bg-white/70 dark:bg-slate-950/80 backdrop-blur-md border-r border-slate-200 dark:border-slate-800/80 shrink-0 hidden md:flex flex-col justify-between transition-all duration-300 ease-in-out`}
+    >
+      <div className="p-3 sm:p-4">
+        {/* Sidebar Header with Collapse Toggle */}
+        <div className="flex items-center justify-between mb-3 px-1 sm:px-2">
+          {!isCollapsed && (
+            <h2 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+              Core ERP Modules
+            </h2>
+          )}
+          {toggleSidebar && (
+            <button
+              onClick={toggleSidebar}
+              title={isCollapsed ? 'Expand Sidebar (Ctrl/Alt+B)' : 'Collapse Sidebar to widen workspace'}
+              className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer ${
+                isCollapsed ? 'mx-auto' : ''
+              }`}
+              aria-label="Toggle Sidebar"
+            >
+              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
+
         <nav className="space-y-1.5">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -28,54 +60,74 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                title={`Open ${item.label} (${item.shortcut})`}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                title={`${item.label} (${item.shortcut})`}
+                className={`w-full flex items-center ${
+                  isCollapsed ? 'justify-center px-2 py-3' : 'justify-between px-3.5 py-2.5'
+                } rounded-xl text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/25 border border-indigo-500/50 scale-[1.02]'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/80 border border-transparent'
                 }`}
               >
-                <div className="flex items-center space-x-3">
-                  <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : item.color}`} />
-                  <span>{item.label}</span>
+                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
+                  <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-white' : item.color}`} />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
                 </div>
-                <div className="flex items-center space-x-1.5">
-                  {item.badge && (
-                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
-                      isActive 
-                        ? 'bg-indigo-900/80 text-indigo-100 border-indigo-400/40' 
-                        : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                    }`}>
-                      {item.badge}
-                    </span>
-                  )}
-                  <kbd className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
-                    isActive 
-                      ? 'bg-indigo-800/80 text-indigo-100 border-indigo-400/30'
-                      : 'bg-slate-100 dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800'
-                  }`}>
-                    {item.shortcut}
-                  </kbd>
-                </div>
+
+                {!isCollapsed && (
+                  <div className="flex items-center space-x-1.5 shrink-0">
+                    {item.badge && (
+                      <span
+                        className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                          isActive
+                            ? 'bg-indigo-900/80 text-indigo-100 border-indigo-400/40'
+                            : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                    <kbd
+                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded border hidden xl:inline-block ${
+                        isActive
+                          ? 'bg-indigo-800/80 text-indigo-100 border-indigo-400/30'
+                          : 'bg-slate-100 dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {item.shortcut}
+                    </kbd>
+                  </div>
+                )}
               </button>
             );
           })}
         </nav>
       </div>
 
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800/80">
-        <div className="bg-gradient-to-br from-indigo-500/10 via-slate-50 dark:via-slate-900/90 to-purple-500/10 rounded-2xl p-3.5 border border-indigo-200/50 dark:border-indigo-900/40 space-y-1.5 shadow-sm">
-          <div className="flex items-center space-x-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50"></span>
-            <span>ACID Ledger Engine</span>
+      {/* Footer System Status Card */}
+      <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800/80">
+        {!isCollapsed ? (
+          <div className="bg-gradient-to-br from-indigo-500/10 via-slate-50 dark:via-slate-900/90 to-purple-500/10 rounded-2xl p-3.5 border border-indigo-200/50 dark:border-indigo-900/40 space-y-1.5 shadow-sm">
+            <div className="flex items-center space-x-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50"></span>
+              <span>ACID Ledger Engine</span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+              Real-time balance syncing & instant passbook statements.
+            </p>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-            Real-time balance syncing & instant passbook statements.
-          </p>
-        </div>
+        ) : (
+          <div
+            className="flex justify-center p-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+            title="ACID Ledger Engine: Real-time balance syncing & instant passbook statements"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50"></span>
+          </div>
+        )}
       </div>
     </aside>
   );
 };
 
 export default Sidebar;
+

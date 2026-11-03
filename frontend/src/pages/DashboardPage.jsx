@@ -71,13 +71,13 @@ const DashboardPage = ({
       <QuickStartGuide onNavigate={onNavigate} />
 
       {/* Migration & Old Data Import Hub Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 shrink-0">
-            <Database className="w-6 h-6" />
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 shrink-0">
+            <Database className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-wrap">
               <h3 className="text-sm sm:text-base font-black text-white">
                 Migrate Previous Bahi-Khata or Excel Data
               </h3>
@@ -92,32 +92,32 @@ const DashboardPage = ({
         </div>
         <button
           onClick={() => onOpenMigrationModal && onOpenMigrationModal('parties')}
-          className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 active:scale-95 shrink-0 border border-indigo-400/30"
+          className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white text-xs font-black px-4 sm:px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 active:scale-95 shrink-0 border border-indigo-400/30 w-full sm:w-auto cursor-pointer"
         >
           <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
           <span>Import Old Data / Excel</span>
         </button>
       </div>
 
-      {/* KPI Stats Summary Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Stats Summary Grid (Responsive 2 cols on tablet/laptop, 4 cols on desktop) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 min-[1400px]:grid-cols-4 gap-3.5 sm:gap-4">
         {/* Metric 1: Total Outstanding */}
         <div
           onClick={() => onNavigate('ledger')}
-          className="bg-gradient-to-br from-amber-500/10 via-white dark:via-slate-900 to-amber-500/5 border border-amber-200/80 dark:border-amber-500/30 p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-amber-400 dark:hover:border-amber-500/50 transition cursor-pointer group"
+          className="bg-gradient-to-br from-amber-500/10 via-white dark:via-slate-900 to-amber-500/5 border border-amber-200/80 dark:border-amber-500/30 p-4 sm:p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-amber-400 dark:hover:border-amber-500/50 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
               Total Outstanding Due
             </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm shrink-0">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
+          <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
             {formatCurrency(totalOutstandingDue)}
           </span>
-          <span className="text-[11px] text-amber-600/80 dark:text-amber-400/80 block mt-1 font-medium">
+          <span className="text-[11px] text-amber-600/80 dark:text-amber-400/80 block mt-1 font-medium truncate">
             Pending collection from {parties.filter((p) => p.currentBalance > 0).length} accounts
           </span>
         </div>
@@ -125,20 +125,20 @@ const DashboardPage = ({
         {/* Metric 2: Dispatch Orders */}
         <div
           onClick={() => onNavigate('orders')}
-          className="bg-gradient-to-br from-sky-500/10 via-white dark:via-slate-900 to-sky-500/5 border border-sky-200/80 dark:border-sky-500/30 p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-sky-400 dark:hover:border-sky-500/50 transition cursor-pointer group"
+          className="bg-gradient-to-br from-sky-500/10 via-white dark:via-slate-900 to-sky-500/5 border border-sky-200/80 dark:border-sky-500/30 p-4 sm:p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-sky-400 dark:hover:border-sky-500/50 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wider">
               B2B Dispatch Orders
             </span>
-            <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shadow-sm shrink-0">
               <ShoppingCart className="w-4 h-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
+          <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
             {totalOrdersCount} Invoices
           </span>
-          <span className="text-[11px] text-sky-600/80 dark:text-sky-300 block mt-1 font-medium">
+          <span className="text-[11px] text-sky-600/80 dark:text-sky-300 block mt-1 font-medium truncate">
             {unpaidOrdersCount} pending full settlement
           </span>
         </div>
@@ -146,20 +146,20 @@ const DashboardPage = ({
         {/* Metric 3: Active Parties */}
         <div
           onClick={() => onNavigate('parties')}
-          className="bg-gradient-to-br from-indigo-500/10 via-white dark:via-slate-900 to-indigo-500/5 border border-indigo-200/80 dark:border-indigo-500/30 p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500/50 transition cursor-pointer group"
+          className="bg-gradient-to-br from-indigo-500/10 via-white dark:via-slate-900 to-indigo-500/5 border border-indigo-200/80 dark:border-indigo-500/30 p-4 sm:p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500/50 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">
               Active Parties
             </span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm shrink-0">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
+          <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
             {parties.length} Accounts
           </span>
-          <span className="text-[11px] text-indigo-600/80 dark:text-indigo-300 block mt-1 font-medium">
+          <span className="text-[11px] text-indigo-600/80 dark:text-indigo-300 block mt-1 font-medium truncate">
             Customers & Raw Material Vendors
           </span>
         </div>
@@ -167,27 +167,27 @@ const DashboardPage = ({
         {/* Metric 4: Inventory */}
         <div
           onClick={() => onNavigate('inventory')}
-          className="bg-gradient-to-br from-emerald-500/10 via-white dark:via-slate-900 to-emerald-500/5 border border-emerald-200/80 dark:border-emerald-500/30 p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-500/50 transition cursor-pointer group"
+          className="bg-gradient-to-br from-emerald-500/10 via-white dark:via-slate-900 to-emerald-500/5 border border-emerald-200/80 dark:border-emerald-500/30 p-4 sm:p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-500/50 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
               Inventory & Products
             </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-sm shrink-0">
               <Boxes className="w-4 h-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
+          <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white block mt-2 font-mono">
             {products.length} Products
           </span>
-          <span className={`text-[11px] block mt-1 font-bold ${lowStockCount > 0 ? 'text-rose-500 dark:text-rose-400 animate-pulse' : 'text-emerald-600 dark:text-emerald-400'}`}>
+          <span className={`text-[11px] block mt-1 font-bold truncate ${lowStockCount > 0 ? 'text-rose-500 dark:text-rose-400 animate-pulse' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {lowStockCount > 0 ? `⚠️ ${lowStockCount} items below min stock!` : '✓ All stock levels healthy'}
           </span>
         </div>
       </div>
 
       {/* Main Grid: Quick Action Buttons & Recent Invoices */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 sm:gap-6">
         {/* Left Column: Quick Action Touch Buttons */}
         <div className="space-y-4">
           <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">Quick Actions</h3>
@@ -260,7 +260,7 @@ const DashboardPage = ({
         </div>
 
         {/* Right Column: Recent Dispatch Orders & Statuses */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="xl:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 tracking-tight">Recent Dispatch Orders</h3>
             <button
@@ -283,7 +283,7 @@ const DashboardPage = ({
                   <div
                     key={ord._id}
                     onClick={() => onNavigate('ledger')}
-                    className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer flex items-center justify-between gap-3"
+                    className="p-3.5 sm:p-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">

@@ -55,6 +55,21 @@ const App = () => {
   const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
   const [migrationModule, setMigrationModule] = useState('parties');
 
+  // Responsive Collapsible Sidebar state (auto-collapse on laptops/tablets < 1280px for wide workspace)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar_collapsed');
+    if (saved !== null) return saved === 'true';
+    return typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1366;
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
   const [preselectedPartyId, setPreselectedPartyId] = useState('');
 
   const handleOpenMigrationModal = (mod = 'parties') => {
@@ -193,14 +208,21 @@ const App = () => {
         onOpenMigrationModal={handleOpenMigrationModal}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        isSidebarCollapsed={isSidebarCollapsed}
+        toggleSidebar={toggleSidebar}
       />
 
       <div className="flex flex-1 overflow-hidden w-full">
-        {/* Navigation Sidebar (Desktop) */}
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        {/* Navigation Sidebar (Desktop & Tablet) */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isCollapsed={isSidebarCollapsed}
+          toggleSidebar={toggleSidebar}
+        />
 
         {/* Main Content Area with mobile bottom padding */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 pb-24 md:pb-8 custom-scrollbar w-full">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 lg:p-6 xl:p-8 pb-28 sm:pb-24 md:pb-8 custom-scrollbar w-full">
           <div className="w-full max-w-7xl mx-auto">
             {activeTab === 'dashboard' && (
               <DashboardPage

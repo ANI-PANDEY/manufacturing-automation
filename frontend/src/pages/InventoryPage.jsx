@@ -275,7 +275,7 @@ const InventoryPage = ({ onOpenInwardModal, refreshTrigger }) => {
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 min-[1400px]:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase">{activePreset.productLabel.split(' ')[0]} Items</p>
