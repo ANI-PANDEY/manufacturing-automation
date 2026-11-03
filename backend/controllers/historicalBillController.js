@@ -349,9 +349,22 @@ const getHistoricalBillPrintData = async (req, res) => {
         }
       }
 
-      // 2. If cleanId is a Transaction ID, find referenceId
-      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
-        tx = await Transaction.findById(cleanId).populate('partyId').lean();
+      // 2. If cleanId is a Transaction ID or referenceId, find tx
+      if (!bill) {
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          tx = await Transaction.findById(cleanId).populate('partyId').lean();
+        }
+        if (!tx) {
+          tx = await Transaction.findOne({
+            referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            ...userFilter,
+          }).populate('partyId').lean();
+          if (!tx && Object.keys(userFilter).length > 0) {
+            tx = await Transaction.findOne({
+              referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            }).populate('partyId').lean();
+          }
+        }
         if (tx && tx.referenceId) {
           bill = await HistoricalBill.findOne({
             billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
@@ -414,6 +427,7 @@ const getHistoricalBillPrintData = async (req, res) => {
       const printData = {
         billId: bill._id,
         billNumber: bill.billNumber,
+        invoiceNumber: bill.billNumber,
         date: bill.date,
         formattedDate: new Date(bill.date).toLocaleDateString('en-IN', {
           day: '2-digit',
@@ -500,6 +514,7 @@ const getHistoricalBillPrintData = async (req, res) => {
       const printData = {
         billId: tx._id,
         billNumber: tx.referenceId || `TX-${tx._id}`,
+        invoiceNumber: tx.referenceId || `TX-${tx._id}`,
         date: tx.date,
         formattedDate: new Date(tx.date).toLocaleDateString('en-IN', {
           day: '2-digit',
@@ -577,9 +592,22 @@ const getHistoricalBillById = async (req, res) => {
         }
       }
 
-      // 2. If cleanId is a Transaction ID, find referenceId
-      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
-        tx = await Transaction.findById(cleanId).populate('partyId').lean();
+      // 2. If cleanId is a Transaction ID or referenceId, find tx
+      if (!bill) {
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          tx = await Transaction.findById(cleanId).populate('partyId').lean();
+        }
+        if (!tx) {
+          tx = await Transaction.findOne({
+            referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            ...userFilter,
+          }).populate('partyId').lean();
+          if (!tx && Object.keys(userFilter).length > 0) {
+            tx = await Transaction.findOne({
+              referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            }).populate('partyId').lean();
+          }
+        }
         if (tx && tx.referenceId) {
           bill = await HistoricalBill.findOne({
             billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
@@ -747,9 +775,22 @@ const updateHistoricalBill = async (req, res) => {
         }
       }
 
-      // Check if cleanId is a Transaction ID
-      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
-        tx = await Transaction.findById(cleanId);
+      // Check if cleanId is a Transaction ID or referenceId
+      if (!bill) {
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          tx = await Transaction.findById(cleanId);
+        }
+        if (!tx) {
+          tx = await Transaction.findOne({
+            referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            ...userFilter,
+          });
+          if (!tx && Object.keys(userFilter).length > 0) {
+            tx = await Transaction.findOne({
+              referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            });
+          }
+        }
         if (tx && tx.referenceId) {
           bill = await HistoricalBill.findOne({
             billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
@@ -1225,9 +1266,22 @@ const deleteHistoricalBill = async (req, res) => {
         }
       }
 
-      // Check if cleanId is a Transaction ID
-      if (!bill && mongoose.Types.ObjectId.isValid(cleanId)) {
-        tx = await Transaction.findById(cleanId);
+      // Check if cleanId is a Transaction ID or referenceId
+      if (!bill) {
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+          tx = await Transaction.findById(cleanId);
+        }
+        if (!tx) {
+          tx = await Transaction.findOne({
+            referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            ...userFilter,
+          });
+          if (!tx && Object.keys(userFilter).length > 0) {
+            tx = await Transaction.findOne({
+              referenceId: { $regex: new RegExp(`^${cleanId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
+            });
+          }
+        }
         if (tx && tx.referenceId) {
           bill = await HistoricalBill.findOne({
             billNumber: { $regex: new RegExp(`^${tx.referenceId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') },
