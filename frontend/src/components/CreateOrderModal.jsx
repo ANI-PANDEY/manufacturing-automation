@@ -129,7 +129,7 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-sky-500/20 bg-gradient-to-r from-slate-900 via-sky-950/50 to-slate-900 text-white">
           <div className="flex items-center space-x-3">
@@ -224,116 +224,124 @@ const CreateOrderModal = ({ isOpen, onClose, parties = [], onSuccess }) => {
             </div>
 
             {/* Desktop Table Header */}
-            <div className="hidden sm:grid grid-cols-12 gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 border border-slate-200 dark:border-slate-700/60">
-              <div className="col-span-4">Item / Product Name</div>
-              <div className="col-span-2 text-center">Bags / Pcs (बोरी)</div>
-              <div className="col-span-2 text-center">Qty / Bag (kg)</div>
-              <div className="col-span-2 text-center">Total Wt / Qty</div>
-              <div className="col-span-2 text-right pr-6">Rate (₹) & Amount</div>
-            </div>
-
-            <div className="space-y-2">
-              {items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 items-center transition hover:border-sky-500/40">
-                  {/* Product Selection */}
-                  <div className="sm:col-span-4">
-                    <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Product</label>
-                    <select
-                      value={item.productId}
-                      onChange={(e) => handleProductSelect(idx, e.target.value)}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                      required
-                    >
-                      <option value="">-- Select Product --</option>
-                      {availableProducts.map((p) => (
-                        <option key={p._id} value={p._id}>
-                          {p.productName} (Stock: {p.stockQuantity} {p.unit})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Bags / Pcs */}
-                  <div className="sm:col-span-2">
-                    <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Bags / Pcs (बोरी)</label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder="Bags"
-                        value={item.bags}
-                        onChange={(e) => handleItemChange(idx, 'bags', e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 pr-9 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-center"
-                      />
-                      <span className="absolute right-2 top-2 text-[10px] text-slate-400 pointer-events-none font-sans">bags</span>
-                    </div>
-                  </div>
-
-                  {/* Qty / Bag (kg) */}
-                  <div className="sm:col-span-2">
-                    <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Qty / Bag (kg)</label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder="kg/bag"
-                        value={item.qtyPerBag}
-                        onChange={(e) => handleItemChange(idx, 'qtyPerBag', e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-center"
-                      />
-                      <span className="absolute right-2 top-2 text-[10px] text-slate-400 pointer-events-none font-sans">kg/bag</span>
-                    </div>
-                  </div>
-
-                  {/* Total Weight / Quantity */}
-                  <div className="sm:col-span-2">
-                    <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Total Quantity / Weight</label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="0.0001"
-                        step="any"
-                        placeholder="Total Qty"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 pr-7 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono font-bold text-center"
-                        required
-                      />
-                      <span className="absolute right-2 top-2 text-[10px] text-sky-500 font-bold pointer-events-none">{item.unit || 'Kg'}</span>
-                    </div>
-                  </div>
-
-                  {/* Rate, Line Subtotal & Delete */}
-                  <div className="sm:col-span-2 flex items-center space-x-1.5">
-                    <div className="flex-1">
-                      <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Rate (₹)</label>
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        placeholder="Rate ₹"
-                        value={item.unitPrice}
-                        onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
-                        required
-                      />
-                    </div>
-                    <div className="text-right font-black text-xs text-slate-900 dark:text-white font-mono min-w-[65px] pt-4 sm:pt-0">
-                      {formatCurrency(Math.round(((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) + Number.EPSILON) * 100) / 100)}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItemRow(idx)}
-                      className="p-1.5 text-slate-400 hover:text-rose-500 transition pt-4 sm:pt-1.5"
-                      title="Remove row"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+            <div className="overflow-x-auto custom-scrollbar pb-1">
+              <div className="min-w-[650px]">
+                <div className="hidden sm:grid grid-cols-12 gap-2.5 px-3 py-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 border border-slate-200 dark:border-slate-700/60">
+                  <div className="col-span-3">Item / Product Name</div>
+                  <div className="col-span-2 text-center">Bags / Pcs (बोरी)</div>
+                  <div className="col-span-2 text-center">Qty / Bag (kg)</div>
+                  <div className="col-span-2 text-center">Total Wt / Qty</div>
+                  <div className="col-span-2 text-center">Rate (₹)</div>
+                  <div className="col-span-1 text-center">Action</div>
                 </div>
-              ))}
+
+                <div className="space-y-2">
+                  {items.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 items-center transition hover:border-sky-500/40">
+                      {/* Product Selection */}
+                      <div className="sm:col-span-3">
+                        <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Product</label>
+                        <select
+                          value={item.productId}
+                          onChange={(e) => handleProductSelect(idx, e.target.value)}
+                          className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                          required
+                        >
+                          <option value="">-- Select Product --</option>
+                          {availableProducts.map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {p.productName} (Stock: {p.stockQuantity} {p.unit})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Bags / Pcs */}
+                      <div className="sm:col-span-2">
+                        <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Bags / Pcs (बोरी)</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            placeholder="0"
+                            value={item.bags}
+                            onChange={(e) => handleItemChange(idx, 'bags', e.target.value)}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 pr-9 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-center"
+                          />
+                          <span className="absolute right-2 top-2 text-[10px] text-slate-400 pointer-events-none font-sans">bags</span>
+                        </div>
+                      </div>
+
+                      {/* Qty / Bag (kg) */}
+                      <div className="sm:col-span-2">
+                        <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Qty / Bag (kg)</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            placeholder="0"
+                            value={item.qtyPerBag}
+                            onChange={(e) => handleItemChange(idx, 'qtyPerBag', e.target.value)}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 pr-11 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-center"
+                          />
+                          <span className="absolute right-2 top-2 text-[10px] text-slate-400 pointer-events-none font-sans">kg/bag</span>
+                        </div>
+                      </div>
+
+                      {/* Total Weight / Quantity */}
+                      <div className="sm:col-span-2">
+                        <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Total Quantity / Weight</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0.0001"
+                            step="any"
+                            placeholder="1"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 pr-7 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono font-bold text-center"
+                            required
+                          />
+                          <span className="absolute right-2 top-2 text-[10px] text-sky-500 font-bold pointer-events-none">{item.unit || 'Kg'}</span>
+                        </div>
+                      </div>
+
+                      {/* Rate (₹) - Dedicated Spacious Input */}
+                      <div className="sm:col-span-2">
+                        <label className="block sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-0.5">Rate (₹)</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="0.00"
+                            value={item.unitPrice}
+                            onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-xl px-2.5 py-2 pl-6 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono font-bold text-right"
+                            required
+                          />
+                          <span className="absolute left-2.5 top-2 text-xs text-slate-400 font-bold pointer-events-none">₹</span>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="sm:col-span-1 flex items-center justify-center pt-2 sm:pt-0">
+                        <button
+                          type="button"
+                          onClick={() => removeItemRow(idx)}
+                          disabled={items.length === 1}
+                          className="p-2 text-slate-400 hover:text-rose-500 disabled:opacity-30 disabled:hover:text-slate-400 transition rounded-xl hover:bg-rose-500/10 cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Total Bags & Weight Breakdown Summary Banner */}
