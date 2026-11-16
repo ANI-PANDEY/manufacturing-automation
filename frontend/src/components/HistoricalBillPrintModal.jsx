@@ -13,7 +13,7 @@ import {
   AlertCircle,
   FileText,
 } from 'lucide-react';
-import { formatCurrency } from '../utils/exportUtils';
+import { formatCurrency, exportHistoricalBillToPDF } from '../utils/exportUtils';
 import { useAuth } from '../context/AuthContext';
 const HistoricalBillPrintModal = ({ isOpen, onClose, billData }) => {
   const { user } = useAuth();
@@ -42,10 +42,14 @@ const HistoricalBillPrintModal = ({ isOpen, onClose, billData }) => {
     window.print();
   };
 
+  const handleDownloadPDF = () => {
+    exportHistoricalBillToPDF(billData, user?.companyName || 'Manufacturing ERP Enterprise');
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-fadeIn print:static print:p-0 print:bg-white print:backdrop-blur-none">
       {/* Container */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:overflow-visible print:w-full print:border-none print:shadow-none print:rounded-none">
         {/* Header toolbar (Hidden during print) */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 print:hidden">
           <div className="flex items-center space-x-2.5">
@@ -64,11 +68,20 @@ const HistoricalBillPrintModal = ({ isOpen, onClose, billData }) => {
 
           <div className="flex items-center space-x-2">
             <button
+              onClick={handleDownloadPDF}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition active:scale-95"
+              title="Download high-resolution PDF invoice"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download PDF</span>
+            </button>
+
+            <button
               onClick={handlePrint}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/25 transition active:scale-95"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/25 transition active:scale-95"
             >
               <Printer className="w-4 h-4" />
-              <span>Print / Save PDF</span>
+              <span>Print</span>
             </button>
 
             <button
@@ -272,12 +285,20 @@ const HistoricalBillPrintModal = ({ isOpen, onClose, billData }) => {
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex justify-end space-x-3 bg-slate-50 dark:bg-slate-800/60 print:hidden">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex justify-end items-center space-x-3 bg-slate-50 dark:bg-slate-800/60 print:hidden">
           <button
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
           >
             Close
+          </button>
+
+          <button
+            onClick={handleDownloadPDF}
+            className="inline-flex items-center space-x-2 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 font-bold text-xs px-5 py-2.5 rounded-xl transition active:scale-95"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download PDF</span>
           </button>
 
           <button

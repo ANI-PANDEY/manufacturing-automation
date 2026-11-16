@@ -81,3 +81,28 @@
   scrollbar-width: none;
 }
 
+/* Print Optimization Styles */
+@media print {
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .fixed {
+    position: static !important;
+  }
+
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .bg-slate-950\/85,
+  .bg-slate-950\/80 {
+    background: transparent !important;
+    backdrop-filter: none !important;
+  }
+}
+

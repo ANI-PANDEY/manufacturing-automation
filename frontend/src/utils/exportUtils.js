@@ -11,6 +11,18 @@ export const formatCurrency = (amount) => {
   }).format(num);
 };
 
+export const formatPDFNumber = (amount) => {
+  const num = Number(amount) || 0;
+  return new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
+
+export const formatPDFCurrency = (amount) => {
+  return `Rs. ${formatPDFNumber(amount)}`;
+};
+
 export const generateUPIPaymentURL = (upiId, companyName = '', amount = 0) => {
   if (!upiId) return '';
   const cleanUpi = upiId.trim();
@@ -120,92 +132,157 @@ export const exportLedgerToPDF = (ledgerData, startDate = null, endDate = null, 
   const { party, openingBalance = 0, closingBalance = 0, totalDebit = 0, totalCredit = 0, ledger = [] } = ledgerData;
   const safeCompanyName = (typeof companyName === 'string' && companyName.trim()) ? companyName.trim() : 'Manufacturing ERP Enterprise';
 
-  // Header Background Accent
+  // 1. Header Banner
   doc.setFillColor(15, 23, 42); // slate-900
   doc.rect(0, 0, 210, 32, 'F');
 
-  // Title & Subtitle
   const titleText = safeCompanyName.toUpperCase();
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(titleText.length > 28 ? 13 : 16);
-  doc.text(titleText, 14, 15);
-  doc.setFontSize(9);
+  doc.setFontSize(titleText.length > 28 ? 12 : 15);
+  doc.text(titleText, 14, 14);
+
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text('Date-wise B2B Passbook & Split Payment Ledger Statement', 14, 23);
+  doc.setTextColor(203, 213, 225); // slate-300
+  doc.text('Date-wise B2B Passbook & Split Payment Ledger Statement', 14, 22);
 
-  doc.setTextColor(2, 132, 199);
+  doc.setTextColor(56, 189, 248); // sky-400
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('CONFIDENTIAL B2B STATEMENT', 145, 15);
+  doc.setFontSize(9.5);
+  doc.text('CONFIDENTIAL B2B STATEMENT', 196, 14, { align: 'right' });
 
-  // Party Profile Info Box
-  doc.setTextColor(30, 41, 59);
-  doc.setFillColor(241, 245, 249);
-  doc.roundedRect(14, 38, 182, 32, 3, 3, 'F');
-
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Party: ${party?.name || 'N/A'}`, 18, 46);
-  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184); // slate-400
+  const genDateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  doc.text(`Generated: ${genDateStr}`, 196, 22, { align: 'right' });
+
+  // 2. Party Profile Info Box (Left Card)
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, 36, 105, 35, 2.5, 2.5, 'FD');
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  const partyDisplayName = (party?.name || 'N/A').toUpperCase();
+  doc.text(`Party: ${partyDisplayName}`, 18, 43.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(71, 85, 105);
   const ledgerPh = party?.phone ? `+91 ${String(party.phone).replace(/\D/g, '').slice(-10)}` : 'N/A';
-  doc.text(`GSTIN: ${party?.gstin || 'N/A'} | Phone: ${ledgerPh}`, 18, 52);
-  doc.text(`Address: ${party?.address || 'N/A'}`, 18, 58);
-  doc.text(`Statement Period: ${startDate || 'Beginning'} to ${endDate || 'Present'}`, 18, 64);
+  doc.text(`GSTIN: ${party?.gstin || 'N/A'}  |  Phone: ${ledgerPh}`, 18, 50.5);
 
-  // Balance Metrics Summary Box
+  const cleanAddr = party?.address ? String(party.address).trim() : 'N/A';
+  const splitAddr = doc.splitTextToSize(`Address: ${cleanAddr}`, 97);
+  doc.text(splitAddr[0] || 'Address: N/A', 18, 57.5);
+
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Statement Period: ${startDate || 'Beginning'} to ${endDate || 'Present'}`, 18, 64.5);
+
+  // 3. Balance Metrics Summary Box (Right Card)
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(123, 36, 73, 35, 2.5, 2.5, 'FD');
+
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Opening Balance:', 127, 43);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Opening Balance: ${formatCurrency(openingBalance)}`, 125, 46);
-  doc.text(`Total Sales (Debit): ${formatCurrency(totalDebit)}`, 125, 52);
-  doc.text(`Total Paid (Credit): ${formatCurrency(totalCredit)}`, 125, 58);
-  
-  doc.setTextColor(closingBalance > 0 ? 220 : 22, closingBalance > 0 ? 38 : 163, closingBalance > 0 ? 38 : 74);
-  doc.text(`Outstanding Balance: ${formatCurrency(closingBalance)}`, 125, 64);
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatPDFCurrency(openingBalance), 192, 43, { align: 'right' });
 
-  // Passbook Table
-  const tableData = (ledger || []).map((row) => [
-    row.date ? new Date(row.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
-    row.type === 'DISPATCH' ? 'OUTWARD DISPATCH' : 'PAYMENT RECEIVED',
-    row.refNo || '-',
-    row.debit > 0 ? formatCurrency(row.debit) : '-',
-    row.credit > 0 ? formatCurrency(row.credit) : '-',
-    formatCurrency(row.remainingBalance || 0),
-    row.notes || '-',
-  ]);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Total Sales (Debit):', 127, 49);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatPDFCurrency(totalDebit), 192, 49, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Total Paid (Credit):', 127, 55);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(16, 185, 129); // emerald-600
+  doc.text(formatPDFCurrency(totalCredit), 192, 55, { align: 'right' });
+
+  // Divider line
+  doc.setDrawColor(226, 232, 240);
+  doc.line(127, 58, 192, 58);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(closingBalance > 0 ? 220 : 16, closingBalance > 0 ? 38 : 185, closingBalance > 0 ? 38 : 129);
+  doc.text('Outstanding Balance:', 127, 64.5);
+  doc.text(formatPDFCurrency(closingBalance), 192, 64.5, { align: 'right' });
+
+  // 4. Passbook Table
+  const tableData = (ledger || []).map((row) => {
+    let cleanType = 'Payment Received';
+    if (row.type === 'DISPATCH' || String(row.type).toUpperCase().includes('DISPATCH') || String(row.type).toUpperCase().includes('SALE')) {
+      cleanType = 'Outward Dispatch';
+    } else if (String(row.type).toUpperCase().includes('ADJUSTMENT')) {
+      cleanType = 'Adjustment';
+    }
+
+    return [
+      row.date ? new Date(row.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+      cleanType,
+      row.refNo || '-',
+      row.debit > 0 ? formatPDFNumber(row.debit) : '-',
+      row.credit > 0 ? formatPDFNumber(row.credit) : '-',
+      formatPDFNumber(row.remainingBalance || 0),
+      row.notes || '-',
+    ];
+  });
 
   doc.autoTable({
     startY: 76,
-    head: [['Date', 'Transaction Type', 'Ref / Invoice #', 'Debit (₹)', 'Credit (₹)', 'Remaining Balance', 'Mode / Notes']],
+    margin: { left: 14, right: 14 },
+    head: [['Date', 'Transaction Type', 'Ref / Invoice #', 'Debit (Rs.)', 'Credit (Rs.)', 'Balance (Rs.)', 'Mode / Notes']],
     body: tableData,
+    foot: [['Total', '', '', formatPDFNumber(totalDebit), formatPDFNumber(totalCredit), formatPDFNumber(closingBalance), '']],
     theme: 'grid',
     headStyles: {
       fillColor: [14, 116, 144], // cyan-700
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 9,
+      fontSize: 8,
+      cellPadding: 2,
     },
     bodyStyles: {
-      fontSize: 8,
+      fontSize: 7.5,
       textColor: [30, 41, 59],
+      cellPadding: 1.8,
+      valign: 'middle',
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
     },
+    footStyles: {
+      fillColor: [241, 245, 249],
+      textColor: [15, 23, 42],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 2,
+    },
     columnStyles: {
-      0: { cellWidth: 24 },
-      1: { cellWidth: 32 },
-      2: { cellWidth: 28 },
-      3: { cellWidth: 26, halign: 'right' },
-      4: { cellWidth: 26, halign: 'right' },
-      5: { cellWidth: 30, halign: 'right' },
-      6: { cellWidth: 'auto' },
+      0: { cellWidth: 20, halign: 'center' },
+      1: { cellWidth: 24, halign: 'left' },
+      2: { cellWidth: 30, halign: 'left' },
+      3: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 22, halign: 'right' },
+      5: { cellWidth: 24, halign: 'right' },
+      6: { cellWidth: 40, halign: 'left' },
     },
   });
 
-  // Footer Signature
-  const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 180) + 15;
-  if (finalY < 270) {
+  // Footer Signature & Notice
+  const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 180) + 12;
+  if (finalY < 275) {
     doc.setFontSize(8);
     doc.setTextColor(100);
     doc.text(`Issued by: ${safeCompanyName} | Computer-generated Ledger Passbook Statement.`, 14, finalY);
@@ -274,32 +351,35 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
   doc.setTextColor(56, 189, 248); // sky-400
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text(`STATUS: ${order.paymentStatus || 'UNPAID'}`, 140, 16);
+  doc.text(`STATUS: ${order.paymentStatus || 'UNPAID'}`, 196, 16, { align: 'right' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(255, 255, 255);
-  doc.text(`Invoice Date: ${new Date(order.orderDate).toLocaleDateString('en-IN')}`, 140, 24);
+  const invDateStr = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+  doc.text(`Invoice Date: ${invDateStr}`, 196, 24, { align: 'right' });
 
   // Customer Party Details Box
-  doc.setFillColor(241, 245, 249);
-  doc.roundedRect(14, 42, 182, 32, 3, 3, 'F');
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, 42, 182, 32, 2.5, 2.5, 'FD');
 
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(10.5);
   doc.text(`BILLED TO: ${order.party?.name || 'Customer Party'}`, 18, 50);
 
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
   const invoicePh = order.party?.phone ? `+91 ${String(order.party.phone).replace(/\D/g, '').slice(-10)}` : 'N/A';
-  doc.text(`GSTIN: ${order.party?.gstin || 'N/A'} | Phone: ${invoicePh}`, 18, 57);
+  doc.text(`GSTIN: ${order.party?.gstin || 'N/A'}  |  Phone: ${invoicePh}`, 18, 57);
   doc.text(`Address: ${order.party?.address || 'N/A'}`, 18, 64);
 
   // Items Table
   const hasBags = (order.items || []).some((it) => it.bags > 0);
   const tableHeaders = hasBags
-    ? [['#', 'Item / Goods Description', 'Bags (बोरी)', 'Qty/Bag', 'Total Wt', 'Rate (₹)', 'Amount (₹)']]
-    : [['#', 'Item / Goods Description', 'Quantity & UOM', 'Unit Rate (₹)', 'Subtotal Amount (₹)']];
+    ? [['#', 'Item / Goods Description', 'Bags', 'Qty/Bag', 'Total Wt', 'Rate (Rs.)', 'Amount (Rs.)']]
+    : [['#', 'Item / Goods Description', 'Quantity & UOM', 'Unit Rate (Rs.)', 'Subtotal (Rs.)']];
 
   const tableItems = (order.items || []).map((item, idx) => {
     if (hasBags) {
@@ -309,21 +389,22 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
         item.bags > 0 ? `${item.bags} Bags` : '-',
         item.qtyPerBag > 0 ? `${item.qtyPerBag} kg` : '-',
         `${item.quantity} ${item.unit || 'Kg'}`,
-        formatCurrency(item.unitPrice),
-        formatCurrency(item.subtotal || item.quantity * item.unitPrice),
+        formatPDFNumber(item.unitPrice),
+        formatPDFNumber(item.subtotal || item.quantity * item.unitPrice),
       ];
     }
     return [
       idx + 1,
       item.productName || item.product?.productName || 'Goods Item',
       `${item.quantity} ${item.unit || 'Pcs'}`,
-      formatCurrency(item.unitPrice),
-      formatCurrency(item.subtotal || item.quantity * item.unitPrice),
+      formatPDFNumber(item.unitPrice),
+      formatPDFNumber(item.subtotal || item.quantity * item.unitPrice),
     ];
   });
 
   doc.autoTable({
     startY: 80,
+    margin: { left: 14, right: 14 },
     head: tableHeaders,
     body: tableItems,
     theme: 'grid',
@@ -331,26 +412,28 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
       fillColor: [14, 116, 144], // cyan-700
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 9,
+      fontSize: 8.5,
+      cellPadding: 2.2,
     },
     bodyStyles: {
       fontSize: 8,
       textColor: [30, 41, 59],
+      cellPadding: 2,
     },
     columnStyles: hasBags
       ? {
-          0: { cellWidth: 10 },
-          1: { cellWidth: 'auto' },
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 'auto', halign: 'left' },
           2: { cellWidth: 22, halign: 'center' },
           3: { cellWidth: 20, halign: 'center' },
           4: { cellWidth: 24, halign: 'center' },
           5: { cellWidth: 26, halign: 'right' },
-          6: { cellWidth: 32, halign: 'right' },
+          6: { cellWidth: 30, halign: 'right' },
         }
       : {
-          0: { cellWidth: 12 },
-          1: { cellWidth: 'auto' },
-          2: { cellWidth: 32 },
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 'auto', halign: 'left' },
+          2: { cellWidth: 32, halign: 'center' },
           3: { cellWidth: 32, halign: 'right' },
           4: { cellWidth: 38, halign: 'right' },
         },
@@ -362,41 +445,52 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
   // Payment UPI Box (Left side)
   if (upiId) {
     doc.setFillColor(236, 254, 255); // cyan-50
-    doc.roundedRect(14, finalY, 90, 38, 3, 3, 'F');
+    doc.setDrawColor(186, 230, 253);
+    doc.roundedRect(14, finalY, 92, 38, 2.5, 2.5, 'FD');
     doc.setTextColor(14, 116, 144);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text('SCAN TO PAY VIA UPI / QR CODE', 18, finalY + 8);
+    doc.text('PAY VIA UPI / ONLINE', 18, finalY + 8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(8);
     doc.text(`Official UPI ID: ${upiId}`, 18, finalY + 16);
-    doc.text(`Accepted: GPay, PhonePe, Paytm, BHIM`, 18, finalY + 22);
-    doc.text(`Scan QR code on screen or enter UPI VPA above.`, 18, finalY + 28);
+    doc.text(`Accepted: GPay, PhonePe, Paytm, BHIM UPI`, 18, finalY + 22);
+    doc.text(`Scan QR code on screen or send to UPI VPA above.`, 18, finalY + 28);
   }
 
   // Calculation Box (Right side)
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(110, finalY, 86, 38, 3, 3, 'F');
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(110, finalY, 86, 38, 2.5, 2.5, 'FD');
 
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 41, 59);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
   doc.text(`Subtotal Amount:`, 114, finalY + 8);
-  doc.text(formatCurrency(order.subtotalAmount), 190, finalY + 8, { align: 'right' });
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatPDFCurrency(order.subtotalAmount), 192, finalY + 8, { align: 'right' });
 
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
   doc.text(`GST Tax (${order.taxRate || 18}%):`, 114, finalY + 16);
-  doc.text(formatCurrency(order.taxAmount), 190, finalY + 16, { align: 'right' });
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatPDFCurrency(order.taxAmount), 192, finalY + 16, { align: 'right' });
 
-  doc.setFontSize(11);
+  doc.setDrawColor(226, 232, 240);
+  doc.line(114, finalY + 20, 192, finalY + 20);
+
+  doc.setFontSize(9.5);
   doc.setTextColor(2, 132, 199);
   doc.text(`Total Bill Amount:`, 114, finalY + 26);
-  doc.text(formatCurrency(order.totalAmount), 190, finalY + 26, { align: 'right' });
+  doc.text(formatPDFCurrency(order.totalAmount), 192, finalY + 26, { align: 'right' });
 
   doc.setFontSize(9);
   doc.setTextColor(220, 38, 38);
   doc.text(`Balance Due:`, 114, finalY + 34);
-  doc.text(formatCurrency(order.balanceDue), 190, finalY + 34, { align: 'right' });
+  doc.text(formatPDFCurrency(order.balanceDue), 192, finalY + 34, { align: 'right' });
 
   // Footer
   doc.setFontSize(8);
@@ -404,5 +498,170 @@ export const exportInvoiceToPDF = (order, companyName = 'Manufacturing ERP Enter
   doc.text(`Issued by: ${safeCompanyName} | Computer Generated B2B Tax Invoice Bill.`, 14, 280);
 
   doc.save(`Invoice_${order.orderNumber}_${Date.now()}.pdf`);
+};
+
+export const exportHistoricalBillToPDF = (billData, companyName = 'Manufacturing ERP Enterprise') => {
+  if (!billData) return;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const safeCompanyName = (typeof companyName === 'string' && companyName.trim()) ? companyName.trim() : 'Manufacturing ERP Enterprise';
+
+  const party = billData.party || billData.partyId || {};
+  const items = billData.items || [];
+  const billNumber = billData.billNumber || billData.orderNumber || 'HIST-BILL';
+  const billDate = billData.date ? new Date(billData.date) : new Date();
+  const formattedDate = billDate.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  const totalBags = items.reduce((sum, it) => sum + (Number(it.bags) || 0), 0);
+  const totalWeight = Math.round((items.reduce((sum, it) => sum + (Number(it.totalWeight) || 0), 0) + Number.EPSILON) * 100) / 100;
+  const subTotal = Number(billData.subTotal || billData.totalAmount || 0);
+  const paymentReceived = Number(billData.paymentReceived || billData.paidAmount || 0);
+  const balanceDue = Number(billData.balanceDue !== undefined ? billData.balanceDue : subTotal - paymentReceived);
+  const paymentStatus = billData.paymentStatus || (balanceDue <= 0 ? 'PAID' : paymentReceived > 0 ? 'PARTIAL' : 'UNPAID');
+
+  // Top Banner
+  doc.setFillColor(15, 23, 42); // slate-900
+  doc.rect(0, 0, 210, 36, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(safeCompanyName.toUpperCase(), 14, 16);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('ORIGINAL TAX INVOICE / REGISTER BILL', 14, 24);
+  doc.text(`Bill Ref #: ${billNumber}`, 14, 30);
+
+  doc.setTextColor(56, 189, 248);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(`STATUS: ${paymentStatus}`, 196, 16, { align: 'right' });
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(255, 255, 255);
+  doc.text(`Date of Issue: ${formattedDate}`, 196, 24, { align: 'right' });
+
+  // Party Details Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, 42, 182, 32, 2.5, 2.5, 'FD');
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  doc.text(`BILLED TO: ${party.name || 'Valued Customer'}`, 18, 50);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  const partyPh = party.phone ? `+91 ${String(party.phone).replace(/\D/g, '').slice(-10)}` : 'N/A';
+  doc.text(`GSTIN: ${party.gstin || 'N/A'}  |  Phone: ${partyPh}`, 18, 57);
+  doc.text(`Address: ${party.address || 'N/A'}`, 18, 64);
+
+  // Table
+  const tableHeaders = [['#', 'Particulars / Description', 'Bags', 'Qty/Bag', 'Total Wt', 'Rate (Rs.)', 'Amount (Rs.)']];
+  const tableItems = items.map((it, idx) => [
+    idx + 1,
+    it.description || 'Goods Item',
+    it.bags > 0 ? `${it.bags} Bags` : '-',
+    it.qtyPerBag > 0 ? `${it.qtyPerBag} kg` : '-',
+    `${it.totalWeight || it.quantity || 0} kg`,
+    formatPDFNumber(it.rate || it.unitPrice || 0),
+    formatPDFNumber(it.amount || it.subtotal || 0),
+  ]);
+
+  doc.autoTable({
+    startY: 78,
+    margin: { left: 14, right: 14 },
+    head: tableHeaders,
+    body: tableItems,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [14, 116, 144], // cyan-700
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8.5,
+      cellPadding: 2.2,
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: [30, 41, 59],
+      cellPadding: 2,
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 'auto', halign: 'left' },
+      2: { cellWidth: 22, halign: 'center' },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 24, halign: 'center' },
+      5: { cellWidth: 26, halign: 'right' },
+      6: { cellWidth: 30, halign: 'right' },
+    },
+  });
+
+  const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 160) + 8;
+
+  // Notes Box (Left)
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, finalY, 92, 38, 2.5, 2.5, 'FD');
+
+  doc.setTextColor(71, 85, 105);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text('NOTES & REGISTER REMARKS', 18, finalY + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const splitNotes = doc.splitTextToSize(billData.notes || 'Goods dispatched in good condition as per historical pen-and-paper register.', 84);
+  doc.text(splitNotes, 18, finalY + 16);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Total Qty: ${totalBags > 0 ? `${totalBags} Bags / ` : ''}${totalWeight} kg`, 18, finalY + 32);
+
+  // Financial Breakdown Box (Right)
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(110, finalY, 86, 38, 2.5, 2.5, 'FD');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Subtotal Amount:', 114, finalY + 8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatPDFCurrency(subTotal), 192, finalY + 8, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Payment Received:', 114, finalY + 16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(16, 185, 129);
+  doc.text(`(-) ${formatPDFCurrency(paymentReceived)}`, 192, finalY + 16, { align: 'right' });
+
+  doc.setDrawColor(226, 232, 240);
+  doc.line(114, finalY + 20, 192, finalY + 20);
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(balanceDue > 0 ? 220 : 16, balanceDue > 0 ? 38 : 185, balanceDue > 0 ? 38 : 129);
+  doc.text('Balance Due:', 114, finalY + 28);
+  doc.text(formatPDFCurrency(balanceDue), 192, finalY + 28, { align: 'right' });
+
+  // Signatures
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Customer Acceptance Signature', 20, 260);
+  doc.line(20, 256, 75, 256);
+
+  doc.text(`For ${safeCompanyName} (Auth Signatory)`, 135, 260);
+  doc.line(135, 256, 192, 256);
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Computer-generated B2B Invoice Statement. Issued by ${safeCompanyName}`, 14, 280);
+
+  doc.save(`Bill_${billNumber}_${Date.now()}.pdf`);
 };
 
